@@ -1,0 +1,934 @@
+<title>OS Concepts Chapter 1, Animated</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: chapter index rail | animated stage + component notes. Palette: cool "blueprint" paper, cobalt for structure, amber for signals (data, interrupts). */
+:root{
+  --bg:#edf0f4; --panel:#ffffff; --ink:#17212c; --muted:#596777; --line:#cdd5de; --edge:#4a5868;
+  --acc:#2c58d4; --acc-soft:#e3eafc; --sig:#d98200; --ok:#1d9566; --bad:#cf3f3f;
+  --k1:#dce7fb; --k2:#fdebc6; --k3:#d4efe2; --k4:#e5e9ef; --k5:#f7d9d9; --k6:#ebe0fa;
+  --f-disp:"Chakra Petch","Segoe UI",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0e131a; --panel:#151c26; --ink:#e4eaf2; --muted:#94a2b4; --line:#2a3544; --edge:#8a99ab;
+  --acc:#7ea3ff; --acc-soft:#1c2a47; --sig:#ffb547; --ok:#4cc99a; --bad:#ff7b7b;
+  --k1:#1c2d4d; --k2:#3b2c10; --k3:#123628; --k4:#222b37; --k5:#40202a; --k6:#2c2145; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e131a; --panel:#151c26; --ink:#e4eaf2; --muted:#94a2b4; --line:#2a3544; --edge:#8a99ab;
+  --acc:#7ea3ff; --acc-soft:#1c2a47; --sig:#ffb547; --ok:#4cc99a; --bad:#ff7b7b;
+  --k1:#1c2d4d; --k2:#3b2c10; --k3:#123628; --k4:#222b37; --k5:#40202a; --k6:#2c2145; color-scheme:dark}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.55}
+*{box-sizing:border-box}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+
+.app{display:grid;grid-template-columns:270px minmax(0,1fr);min-height:100%}
+.rail{border-right:1px solid var(--line);background:var(--panel);padding-block:18px;position:sticky;top:env(safe-area-inset-top,0px);height:100vh;overflow-y:auto}
+.brand{padding-inline:18px;padding-bottom:14px;border-bottom:1px solid var(--line)}
+.brand b{font-family:var(--f-disp);font-size:20px;font-weight:700;letter-spacing:.01em;display:block;line-height:1.15}
+.brand span{font-family:var(--f-mono);font-size:11px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+.sec{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);padding:14px 18px 4px}
+.rail ol{list-style:none;margin:0;padding:0}
+.rail li button{all:unset;box-sizing:border-box;cursor:pointer;display:grid;grid-template-columns:30px 1fr;gap:4px;width:100%;padding:5px 18px;font-size:13.5px;line-height:1.35;color:var(--ink)}
+.rail li button:hover{background:var(--acc-soft)}
+.rail li button:focus-visible{outline:2px solid var(--acc);outline-offset:-2px}
+.rail li button .n{font-family:var(--f-mono);font-size:11px;color:var(--muted);padding-top:2px;font-variant-numeric:tabular-nums}
+.rail li button[aria-current="true"]{background:var(--acc-soft);box-shadow:inset 3px 0 0 var(--acc);font-weight:600}
+
+main{padding-inline:28px;padding-block:22px 40px;min-width:0;display:flex;flex-direction:column;gap:16px;max-width:1500px}
+.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:10px 20px}
+.eyebrow{font-family:var(--f-mono);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--acc)}
+h1{font-family:var(--f-disp);font-weight:700;font-size:clamp(24px,3.2vw,36px);line-height:1.1;margin:4px 0 0;text-wrap:balance}
+.src{font-family:var(--f-mono);font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.picker{display:none}
+.picker select{width:100%;font:inherit;padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink)}
+
+.work{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(280px,1fr);gap:16px;align-items:start}
+.stagewrap{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.stage{aspect-ratio:800/440;max-width:100%;width:100%}
+.stage svg{display:block;width:100%;height:100%}
+.ctrl{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10px 12px;border-top:1px solid var(--line)}
+.ctrl button{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:7px 12px;cursor:pointer;font-size:13.5px;font-weight:500;display:inline-flex;gap:6px;align-items:center}
+.ctrl button:hover{border-color:var(--acc)}
+.ctrl button.pri{background:var(--acc);border-color:var(--acc);color:var(--panel)}
+.ctrl button:disabled{opacity:.4;cursor:default}
+.ctrl .sp{flex:1}
+.dots{display:flex;gap:5px;align-items:center}
+.dots i{width:8px;height:8px;border-radius:50%;background:var(--line);display:block}
+.dots i.on{background:var(--acc)}
+.dots i.cur{background:var(--sig);transform:scale(1.25)}
+.prog{height:3px;background:var(--line)}
+.prog div{height:100%;background:var(--acc);width:0;transition:width .3s}
+
+.notes{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 18px 10px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.now .k{font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--sig)}
+.now h2{font-family:var(--f-disp);font-weight:600;font-size:21px;line-height:1.2;margin:2px 0 6px;text-wrap:balance}
+.now p{margin:0;max-width:62ch}
+.now p+p{margin-top:8px}
+.now em{font-style:normal;font-weight:600;color:var(--acc)}
+.steps{list-style:none;margin:0;padding:10px 0 0;border-top:1px solid var(--line);display:flex;flex-direction:column}
+.steps button{all:unset;box-sizing:border-box;cursor:pointer;display:grid;grid-template-columns:24px 1fr;gap:6px;width:100%;padding:5px 6px;border-radius:6px;font-size:13.5px;color:var(--muted)}
+.steps button:hover{background:var(--acc-soft);color:var(--ink)}
+.steps button:focus-visible{outline:2px solid var(--acc)}
+.steps .n{font-family:var(--f-mono);font-size:11px;padding-top:2px}
+.steps button.done{color:var(--ink)}
+.steps button[aria-current="true"]{background:var(--acc-soft);color:var(--ink);font-weight:600}
+.hint{font-size:12px;color:var(--muted);font-family:var(--f-mono)}
+.foot{font-size:12.5px;color:var(--muted);max-width:90ch}
+
+/* ---- SVG vocabulary ---- */
+svg text{font-family:var(--f-body);fill:var(--ink)}
+.lb{font-size:15px;font-weight:500;dominant-baseline:central}
+.lbb{font-size:16px;font-weight:600;dominant-baseline:central}
+.sm{font-size:12.5px;fill:var(--muted);dominant-baseline:central}
+.smi{font-size:12.5px;dominant-baseline:central}
+.mono{font-family:var(--f-mono)!important;font-size:12.5px;dominant-baseline:central}
+.hero{font-family:var(--f-disp)!important;font-size:46px;font-weight:700;dominant-baseline:central}
+.sub{font-family:var(--f-disp)!important;font-size:22px;font-weight:500;fill:var(--muted);dominant-baseline:central}
+.cap{font-family:var(--f-mono)!important;font-size:11.5px;letter-spacing:.06em;fill:var(--acc);dominant-baseline:central;text-transform:uppercase}
+.sigt{fill:var(--sig)!important;font-weight:600}
+.okt{fill:var(--ok)!important;font-weight:600}
+.badt{fill:var(--bad)!important;font-weight:600}
+.acct{fill:var(--acc)!important;font-weight:600}
+.bx{stroke:var(--edge);stroke-width:1.3}
+.k1{fill:var(--k1)}.k2{fill:var(--k2)}.k3{fill:var(--k3)}.k4{fill:var(--k4)}.k5{fill:var(--k5)}.k6{fill:var(--k6)}.kp{fill:var(--panel)}.kn{fill:none}
+.ln{stroke:var(--edge);stroke-width:1.8;fill:none}
+.ln.a{stroke:var(--acc)} .ln.s{stroke:var(--sig)} .ln.g{stroke:var(--ok)} .ln.r{stroke:var(--bad)}
+.ln.d{stroke-dasharray:6 5}
+.ln.flow{stroke-dasharray:7 6;animation:flow 1s linear infinite}
+.ln.thick{stroke-width:3}
+.fillacc{fill:var(--acc)}.fillsig{fill:var(--sig)}.fillok{fill:var(--ok)}.fillbad{fill:var(--bad)}.fillink{fill:var(--edge)}.fillpanel{fill:var(--panel)}.fillmut{fill:var(--line)}
+.pkt{fill:var(--sig);stroke:var(--panel);stroke-width:1.5}
+.pkt.a{fill:var(--acc)} .pkt.g{fill:var(--ok)} .pkt.r{fill:var(--bad)}
+.zap{fill:var(--sig);stroke:var(--edge);stroke-width:.8}
+
+[data-s]{transition:opacity .45s ease}
+.hid{opacity:0!important;pointer-events:none}
+.old{opacity:.5}
+.new{animation:pop .6s cubic-bezier(.2,.8,.3,1.2) both}
+.hl{opacity:1!important}
+.hl .bx{stroke:var(--acc);stroke-width:3}
+.blink{animation:blink 1.1s steps(2,start) infinite}
+.spin{animation:spin 2.4s linear infinite;transform-box:fill-box;transform-origin:center}
+.pulse{animation:pulse 1.6s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+@keyframes pop{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes flow{to{stroke-dashoffset:-26}}
+@keyframes blink{to{visibility:hidden}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse{50%{transform:scale(1.12)}}
+@media (prefers-reduced-motion: reduce){
+  .new,.ln.flow,.blink,.spin,.pulse{animation:none!important}
+  [data-s]{transition:none}
+}
+
+@media (max-width:1150px){.work{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:860px){
+  .app{grid-template-columns:minmax(0,1fr)}
+  .rail{display:none}
+  .picker{display:block}
+  main{padding-inline:16px}
+  .ctrl .lbl{display:none}
+}
+</style>
+
+<div class="app">
+  <nav class="rail" aria-label="Scenes">
+    <div class="brand"><b>Chapter 1: Introduction</b><span>Operating System Concepts · animated</span></div>
+    <div id="index"></div>
+  </nav>
+  <main>
+    <div class="picker"><label for="pick" class="hint">Jump to scene</label><select id="pick"></select></div>
+    <div class="top">
+      <div><div class="eyebrow" id="eyebrow"></div><h1 id="title"></h1></div>
+      <div class="src" id="src"></div>
+    </div>
+    <div class="work">
+      <section class="stagewrap" aria-label="Animation">
+        <div class="stage" id="stage" role="img" aria-live="off"></div>
+        <div class="prog"><div id="prog"></div></div>
+        <div class="ctrl">
+          <button id="prevS" title="Previous scene (Shift+←)" aria-label="Previous scene">⏮<span class="lbl">Scene</span></button>
+          <button id="prev" title="Previous step (←)" aria-label="Previous step">◀<span class="lbl">Back</span></button>
+          <button id="play" class="pri" title="Play / pause (Space)">▶ Play</button>
+          <button id="next" title="Next step (→)" aria-label="Next step"><span class="lbl">Next</span>▶</button>
+          <button id="nextS" title="Next scene (Shift+→)" aria-label="Next scene"><span class="lbl">Scene</span>⏭</button>
+          <span class="sp"></span>
+          <div class="dots" id="dots" aria-hidden="true"></div>
+        </div>
+      </section>
+      <aside class="notes" aria-live="polite">
+        <div class="now"><div class="k" id="stepk"></div><h2 id="steph"></h2><div id="stepd"></div></div>
+        <ol class="steps" id="steps"></ol>
+        <div class="hint">← → steps · Shift+← → scenes · Space play</div>
+      </aside>
+    </div>
+    <p class="foot">Built from the Chapter 1 slides of <i>Operating System Concepts</i>, 9th ed. (Silberschatz, Galvin and Gagne). Diagrams are redrawn and simplified for animation; specific numbers, vector numbers and product examples follow the slides and textbook, and a few illustrative values are marked as examples in the notes.</p>
+  </main>
+</div>
+
+<script>
+/* ---------- tiny SVG helpers ---------- */
+const T=(x,y,s,c='lb',a='middle')=>{const ls=String(s).split('\n');const off=(ls.length-1)*0.6;
+  return `<text class="${c}" x="${x}" y="${y}" text-anchor="${a}">${ls.map((l,i)=>`<tspan x="${x}" dy="${i?'1.2em':(-off)+'em'}">${l}</tspan>`).join('')}</text>`};
+const R=(x,y,w,h,label='',c='k1',lc='lb',rx=7)=>`<rect class="bx ${c}" x="${x}" y="${y}" width="${w}" height="${h}" rx="${rx}"/>`+(label!==''?T(x+w/2,y+h/2,label,lc):'');
+const mk=c=>/\bs\b/.test(c)?'S':/\ba\b/.test(c)?'A':/\bg\b/.test(c)?'G':/\br\b/.test(c)?'B':'I';
+const L=(x1,y1,x2,y2,c='')=>`<line class="ln ${c}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"${/nohead/.test(c)?'':` marker-end="url(#ah${mk(c)})"`}/>`;
+const LL=(x1,y1,x2,y2,c='')=>`<line class="ln ${c}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" marker-start="url(#as${mk(c)})" marker-end="url(#ah${mk(c)})"/>`;
+const P=(d,c='')=>`<path class="ln ${c}" d="${d}"${/nohead/.test(c)?'':` marker-end="url(#ah${mk(c)})"`}/>`;
+const W=(d,c='')=>`<path class="ln ${c}" d="${d}"/>`;
+const K=(d,dur=2,c='',b=0,r=6)=>`<circle r="${r}" class="pkt ${c}" cx="0" cy="0"><animateMotion dur="${dur}s" begin="${b}s" repeatCount="indefinite" path="${d}"/></circle>`;
+const KL=(d,txt,dur=2,c='',b=0)=>{if(typeof txt==='number'){[dur,c,b]=[txt,dur||'',c||0];txt='';}return `<g><rect class="pkt ${c}" x="-13" y="-10" width="26" height="20" rx="4"/><text class="mono" x="0" y="0" text-anchor="middle" style="fill:var(--panel);font-weight:600">${txt}</text><animateMotion dur="${dur}s" begin="${b}s" repeatCount="indefinite" path="${d}"/></g>`};
+const GE=(s,e,inner,h='')=>G(s,inner,h).replace('<g ',`<g data-e="${e}" `);
+const G=(s,inner,h='',cls='')=>`<g data-s="${s}"${h!==''?` data-h="${h}"`:''}${cls?` class="${cls}"`:''}>${inner}</g>`;
+const ZAP=(x,y,sc=1)=>`<path class="zap" transform="translate(${x} ${y}) scale(${sc})" d="M4 -16 L-8 2 L-1 2 L-5 16 L8 -3 L1 -3 Z"/>`;
+const person=(x,y,c='fillacc')=>`<circle class="${c}" cx="${x}" cy="${y-14}" r="8"/><path class="${c}" d="M${x-13} ${y+12} Q${x-13} ${y-4} ${x} ${y-4} Q${x+13} ${y-4} ${x+13} ${y+12} Z"/>`;
+const cyl=(x,y,w,h,label='',c='k4')=>`<path class="bx ${c}" d="M${x} ${y+8} L${x} ${y+h-8} A${w/2} 8 0 0 0 ${x+w} ${y+h-8} L${x+w} ${y+8}"/><ellipse class="bx ${c}" cx="${x+w/2}" cy="${y+8}" rx="${w/2}" ry="8"/>`+(label?T(x+w/2,y+h/2+5,label,'smi'):'');
+const monitor=(x,y,w=70,h=48,c='k1')=>`<rect class="bx ${c}" x="${x}" y="${y}" width="${w}" height="${h}" rx="4"/><rect class="bx k4" x="${x+w/2-6}" y="${y+h}" width="12" height="9"/><rect class="bx k4" x="${x+w/2-20}" y="${y+h+9}" width="40" height="5" rx="2"/>`;
+const phone=(x,y,w=40,h=70,c='k1')=>`<rect class="bx ${c}" x="${x}" y="${y}" width="${w}" height="${h}" rx="7"/><rect class="fillpanel" x="${x+5}" y="${y+9}" width="${w-10}" height="${h-22}" rx="2"/><circle class="fillink" cx="${x+w/2}" cy="${y+h-7}" r="2.5"/>`;
+const server=(x,y,w=60,h=80,c='k4')=>`<rect class="bx ${c}" x="${x}" y="${y}" width="${w}" height="${h}" rx="4"/>`+[0,1,2,3].map(i=>`<rect class="bx kp" x="${x+6}" y="${y+7+i*(h-10)/4}" width="${w-12}" height="${(h-10)/4-5}" rx="2"/><circle class="fillok" cx="${x+w-13}" cy="${y+7+i*(h-10)/4+((h-10)/4-5)/2}" r="2.5"/>`).join('');
+const cloud=(x,y,s=1,c='k1')=>`<path class="bx ${c}" transform="translate(${x} ${y}) scale(${s})" d="M-60 20 Q-80 20 -80 2 Q-80 -16 -60 -16 Q-58 -40 -30 -40 Q-14 -58 10 -46 Q30 -60 50 -40 Q78 -40 76 -14 Q92 -8 88 8 Q86 22 66 20 Z"/>`;
+const doc=(x,y,w=34,h=42,c='k4')=>`<path class="bx ${c}" d="M${x} ${y} L${x+w-10} ${y} L${x+w} ${y+10} L${x+w} ${y+h} L${x} ${y+h} Z"/><path class="ln" style="stroke-width:1" d="M${x+w-10} ${y} L${x+w-10} ${y+10} L${x+w} ${y+10}"/>`;
+const lock=(x,y,c='fillok')=>`<path class="ln" style="stroke-width:3" d="M${x-7} ${y} L${x-7} ${y-8} A7 7 0 0 1 ${x+7} ${y-8} L${x+7} ${y}"/><rect class="${c}" x="${x-11}" y="${y-1}" width="22" height="17" rx="3"/>`;
+const XMARK=(x,y,r=12)=>`<circle class="fillbad" cx="${x}" cy="${y}" r="${r}"/><path d="M${x-r/2.4} ${y-r/2.4} L${x+r/2.4} ${y+r/2.4} M${x+r/2.4} ${y-r/2.4} L${x-r/2.4} ${y+r/2.4}" style="stroke:var(--panel);stroke-width:2.6"/>`;
+const CHECK=(x,y,r=12)=>`<circle class="fillok" cx="${x}" cy="${y}" r="${r}"/><path d="M${x-r/2} ${y} L${x-r/8} ${y+r/2.6} L${x+r/2} ${y-r/2.6}" style="stroke:var(--panel);stroke-width:2.6;fill:none"/>`;
+const blinkOnce=(dur,from,to)=>`<animate attributeName="opacity" values="0;0;1;1;0" keyTimes="0;${from};${from+0.01};${to};1" dur="${dur}s" repeatCount="indefinite"/>`;
+const DEFS=`<defs>${[['I','var(--edge)'],['A','var(--acc)'],['S','var(--sig)'],['G','var(--ok)'],['B','var(--bad)']].map(([k,c])=>
+ `<marker id="ah${k}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 Z" style="fill:${c}"/></marker><marker id="as${k}" viewBox="0 0 10 10" refX="1" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M10 0 L0 5 L10 10 Z" style="fill:${c}"/></marker>`).join('')}</defs>`;
+
+/* ---------- scenes ---------- */
+const S=[];
+const add=(o)=>S.push(o);
+
+/* ===== INTRODUCTION ===== */
+add({sec:'Introduction',title:'Chapter 1: Introduction',slides:'Slide 1',
+svg:G(1,T(400,95,'Chapter 1','hero')+T(400,145,'Introduction to Operating Systems','sub'))+
+ G(2,R(170,200,460,44,'users','k6')+L(400,244,400,256,'nohead'),'2')+
+ G(2,R(200,256,400,44,'application programs','k3')+L(400,300,400,312,'nohead'),'2')+
+ G(2,R(230,312,340,44,'operating system','k1','lbb'),'2')+
+ G(2,R(260,368,280,44,'hardware','k4')+L(400,356,400,368,'nohead'),'2')+
+ G(2,K('M400 222 L400 390 L400 222',3.2,'',0),'2'),
+steps:[{t:'Welcome to the grand tour',d:'<p>This chapter answers three questions: <em>what</em> an operating system is, <em>what hardware</em> it runs on and <em>what it manages</em>. Use <b>Next</b> (or the → key) to reveal one component at a time, or press <b>Play</b> to let it run.</p>'},
+ {t:'The one picture to remember',d:'<p>Everything in this chapter fits a layer model: people at the top, hardware at the bottom, and the <em>operating system</em> in the middle. The moving dot is a request travelling down to the hardware and the answer coming back up.</p>'}]});
+
+add({sec:'Introduction',title:'Chapter Roadmap',slides:'Slide 2',dim:false,
+svg:(()=>{const t=['What Operating\nSystems Do','Computer-System\nOrganization','Computer-System\nArchitecture','Operating-System\nStructure','Operating-System\nOperations','Process\nManagement','Memory\nManagement','Storage\nManagement','Protection and\nSecurity','Kernel Data\nStructures','Computing\nEnvironments','Open-Source\nOperating Systems'];
+ const grp=[1,1,1,2,2,3,3,3,3,4,4,4];const col=['','k4','k1','k3','k6'];let o='';
+ t.forEach((s,i)=>{const r=Math.floor(i/4),c=i%4;const x=30+c*190,y=50+r*125;
+  o+=G(grp[i],R(x,y,170,82,'',col[grp[i]])+T(x+16,y+18,String(i+1).padStart(2,'0'),'mono','start')+T(x+85,y+48,s,'smi'),String(grp[i]));});
+ return o;})(),
+steps:[{t:'Part 1: the hardware view',d:'<p>Topics 1–3 explain what the OS is for and the machine it controls: the CPU, memory, buses, device controllers, interrupts and multiprocessor designs.</p>'},
+ {t:'Part 2: how the OS runs',d:'<p>Topics 4–5 show how the OS keeps the CPU busy (multiprogramming, time-sharing) and how it protects itself (dual mode, timer).</p>'},
+ {t:'Part 3: what the OS manages',d:'<p>Topics 6–9 are the OS\'s main jobs: <em>processes</em>, <em>memory</em>, <em>storage</em> and <em>protection</em>.</p>'},
+ {t:'Part 4: the bigger picture',d:'<p>Topics 10–12 cover the data structures inside the kernel, the many environments an OS runs in (mobile, cloud, embedded…) and open-source systems.</p>'}]});
+
+add({sec:'Introduction',title:'Objectives',slides:'Slide 3',
+svg:[['Describe the basic\norganization of\ncomputer systems','k4','CPU · memory · bus'],['Grand tour of the\nmajor components of\noperating systems','k1','processes · memory · files'],['Overview of the many\ntypes of computing\nenvironments','k3','mobile · cloud · embedded'],['Explore several\nopen-source\noperating systems','k6','Linux · BSD']].map(([s,c,f],i)=>
+  G(i+1,R(30+i*190,90,170,200,'',c)+T(115+i*190,120,'0'+(i+1),'cap')+T(115+i*190,185,s,'smi')+T(115+i*190,265,f,'sm'))).join(''),
+steps:[{t:'Organization of a computer',d:'<p>Understand the parts the OS controls: processors, memory, the bus and device controllers, and how they signal each other with interrupts.</p>'},
+ {t:'Major OS components',d:'<p>Tour the managers inside every OS: process management, memory management, storage management, I/O and protection.</p>'},
+ {t:'Computing environments',d:'<p>See how OS design changes from PCs to phones, servers, clusters, clouds and real-time embedded devices.</p>'},
+ {t:'Open-source systems',d:'<p>Look at systems whose source code is published (GNU/Linux, BSD UNIX) and how you can study them, for example inside a virtual machine.</p>'}]});
+
+add({sec:'Introduction',title:'What Is an Operating System?',slides:'Slide 4',
+svg:G(1,person(70,200)+T(70,240,'user','smi'))+
+ G(1,R(150,160,150,80,'application','k3'))+
+ G(1,R(330,140,160,120,'operating\nsystem','k1','lbb'),'1')+
+ G(1,R(520,140,250,120,'','k4')+T(645,160,'hardware','smi')+R(535,180,65,60,'CPU','kp','smi')+R(612,180,65,60,'memory','kp','smi')+R(689,180,65,60,'I/O','kp','smi'))+
+ G(1,K('M95 200 L330 200 L540 210 L330 200 L95 200',4,'a'))+
+ G(2,R(150,320,150,60,'execute\nuser programs','k2','smi')+P('M225 320 L225 245','s'),'2')+
+ G(3,R(330,320,160,60,'convenient\nto use','k2','smi')+P('M410 320 L410 265','s'),'3')+
+ G(4,R(560,320,170,60,'use hardware\nefficiently','k2','smi')+P('M645 320 L645 265','s'),'4')+
+ G(4,`<rect class="fillok" x="560" y="395" width="0" height="8" rx="3"><animate attributeName="width" values="20;170;20" dur="3s" repeatCount="indefinite"/></rect>`+T(645,420,'utilization','sm')),
+steps:[{t:'An intermediary',d:'<p>An operating system is <em>a program that sits between the user and the hardware</em>. The user (through an application) never drives the CPU, memory or devices directly; every request goes through the OS.</p>'},
+ {t:'Goal 1: run user programs',d:'<p>The first goal is to <em>execute user programs</em> and make solving user problems easier, for example by loading programs, giving them memory and handling their I/O.</p>'},
+ {t:'Goal 2: convenience',d:'<p>The OS hides hardware details (disk sectors, device registers) behind simple ideas like files and windows, so the computer is <em>convenient to use</em>.</p>'},
+ {t:'Goal 3: efficiency',d:'<p>The OS must also <em>use the hardware efficiently</em>, keeping the CPU and devices busy and sharing them fairly instead of letting expensive resources sit idle.</p>'}]});
+
+add({sec:'Introduction',title:'Four Components of a Computer System',slides:'Slides 5–6',
+svg:[['user\n1',60],['user\n2',220],['user\n3',380],['user\nn',640]].map(([u,x])=>R(x,20,100,52,u,'k6','smi')+L(x+50,72,x+50,114,'a')).join('').replace(/^/,'<g data-s="4" data-h="4,5">')+T(560,46,'…','lbb')+'</g>'+
+ G(3,R(30,116,740,110,'','k3')+T(110,138,'compiler','smi')+T(270,138,'assembler','smi')+T(430,138,'text editor','smi')+T(560,138,'…','lbb')+T(690,138,'database system','smi')+T(400,188,'system and application programs','lbb'),'3,5')+
+ G(2,R(150,236,500,76,'operating system','k1','lbb'),'2,5')+
+ G(1,R(250,322,300,64,'computer hardware','k4','lbb')+T(400,404,'CPU · memory · I/O devices','sm'),'1,5')+
+ G(5,K('M110 72 L110 160 L400 274 L400 350 L400 274 L110 160 L110 72',4.5,'')),
+steps:[{t:'Hardware',d:'<p>The <em>hardware</em> (CPU, memory and I/O devices) provides the basic computing resources. On its own it only executes instructions; it has no idea of users or files.</p>'},
+ {t:'Operating system',d:'<p>The <em>operating system</em> controls the hardware and coordinates its use among the many applications and users. Notice it sits directly on top of the hardware.</p>'},
+ {t:'System and application programs',d:'<p><em>Application programs</em> define how resources are used to solve users\' problems: word processors, compilers, web browsers, database systems, video games.</p>'},
+ {t:'Users',d:'<p><em>Users</em> are people, but also machines and other computers that make requests of the system.</p>'},
+ {t:'Putting it together',d:'<p>Watch the dot: a user works through an application, the application asks the OS, and the OS drives the hardware. Results travel back up the same path.</p>'}]});
+
+add({sec:'Introduction',title:'What Operating Systems Do',slides:'Slide 7',
+svg:G(1,monitor(45,70,90,60)+T(90,170,'personal computer','smi')+T(90,200,'ease of use,\nperformance','sm'),'1')+
+ G(2,R(205,60,70,90,'','k4')+[0,1,2].map(i=>`<rect class="fillink" x="217" y="${74+i*22}" width="46" height="8" rx="2"/>`).join('')+[0,1,2].map(i=>monitor(196+i*34,128+46,26,18,'k1')).join('')+T(240,230,'mainframe','smi')+T(240,262,'keep ALL users\nhappy','sm'),'2')+
+ G(3,monitor(330,80,70,50)+server(415,62,40,70)+L(400,105,415,98,'a nohead')+T(395,170,'workstation','smi')+T(395,200,'own resources +\nshared servers','sm'),'3')+
+ G(4,phone(530,62,46,80)+R(586,90,34,18,'','kp','sm',3)+`<rect class="fillok" x="589" y="93" width="16" height="12"><animate attributeName="width" values="28;4;28" dur="5s" repeatCount="indefinite"/></rect>`+T(565,170,'handheld','smi')+T(565,200,'usability and\nbattery life','sm'),'4')+
+ G(5,R(670,66,90,64,'','k5')+R(695,82,40,32,'ECU','kp','mono',3)+T(715,170,'embedded','smi')+T(715,200,'little or\nno UI','sm'),'5')+
+ G(6,R(40,290,720,110,'','kp')+T(400,320,'Same job, different priorities','lbb')+T(220,362,'user view → convenience','smi')+T(580,362,'system view → resource utilization','smi')+`<rect class="fillacc" x="385" y="355" width="30" height="14" rx="3"><animate attributeName="x" values="300;470;300" dur="5s" repeatCount="indefinite"/></rect>`),
+steps:[{t:'Personal computer',d:'<p>A single user wants <em>convenience, ease of use and good performance</em>. They do not care how well the CPU is utilized.</p>'},
+ {t:'Mainframe or minicomputer',d:'<p>Many users share one machine through terminals, so the OS must <em>keep all users happy</em>: share CPU time and memory fairly and use resources efficiently.</p>'},
+ {t:'Workstation',d:'<p>Users of workstations have dedicated resources but frequently use <em>shared resources from servers</em> (files, printing), so the OS balances personal and shared use.</p>'},
+ {t:'Handheld device',d:'<p>Phones and tablets are resource-poor, so their OS is optimized for <em>usability and battery life</em> (watch the battery drain).</p>'},
+ {t:'Embedded computer',d:'<p>Computers inside devices and automobiles may have <em>little or no user interface</em>. Their OS mostly runs without human interaction.</p>'},
+ {t:'It depends on the point of view',d:'<p>What an OS "does" depends on who is looking. The <em>user view</em> stresses convenience; the <em>system view</em> stresses using resources well. Real systems sit somewhere on this slider.</p>'}]});
+
+add({sec:'Introduction',title:'Operating System Definition',slides:'Slide 8',
+svg:G(1,R(560,40,200,70,'CPU','k4','lbb')+R(560,130,200,70,'memory','k4','lbb')+R(560,220,200,70,'I/O devices','k4','lbb')+T(660,312,'resources','cap'))+
+ G(2,R(30,50,130,56,'process A','k3')+R(30,140,130,56,'process B','k3')+R(30,230,130,56,'process C','k3')+L(160,78,290,140,'s')+L(160,168,290,168,'s')+L(160,258,290,196,'s')+T(225,110,'wants CPU','sm')+T(225,282,'wants CPU','sm'),'2')+
+ G(3,R(290,110,170,116,'OS\nresource allocator','k1','lbb')+L(460,150,560,75,'a')+L(460,170,560,165,'a')+L(460,195,560,255,'a')+KL('M160 78 L290 140 L460 150 L560 75',3,'',0)+KL('M160 258 L290 196 L460 150 L560 75',3,'a',1.5),'3')+
+ G(4,R(290,330,170,70,'OS\ncontrol program','k1','lbb')+R(30,335,130,56,'buggy program','k5','smi')+L(160,363,290,363,'r')+T(225,345,'write to OS memory','sm')+XMARK(500,365)+T(620,365,'stopped: improper use','smi'),'4'),
+steps:[{t:'Resources to share',d:'<p>A computer has limited resources: CPU time, memory space, storage and I/O devices.</p>'},
+ {t:'Conflicting requests',d:'<p>Several programs want the same resource at the same time. Processes A and C both want the CPU right now.</p>'},
+ {t:'OS as resource allocator',d:'<p>The OS <em>manages all resources</em> and <em>decides between conflicting requests</em> so use is efficient and fair. Here A and C take turns on the CPU.</p>'},
+ {t:'OS as control program',d:'<p>The OS also <em>controls the execution of programs</em> to prevent errors and improper use, for example stopping a program that tries to overwrite memory it does not own.</p>'}]});
+
+add({sec:'Introduction',title:'Operating System Definition (Cont.)',slides:'Slide 9',
+svg:G(3,`<circle class="bx k3" cx="300" cy="220" r="180"/>`+T(300,62,'application programs','smi')+T(170,330,'browser','sm')+T(430,330,'game','sm'),'3')+
+ G(2,`<circle class="bx k6" cx="300" cy="220" r="120"/>`+T(300,122,'system programs','smi')+T(225,262,'shell','sm')+T(375,262,'compiler','sm'),'2')+
+ G(1,`<circle class="bx k1" cx="300" cy="220" r="58"/>`+T(300,212,'kernel','lbb')+T(300,234,'always running','sm'),'1')+
+ G(1,`<circle cx="300" cy="220" r="64" class="ln a d" style="fill:none"><animateTransform attributeName="transform" type="rotate" from="0 300 220" to="360 300 220" dur="8s" repeatCount="indefinite"/></circle>`)+
+ G(4,P('M520 60 L540 60 L540 380 L520 380','nohead')+T(560,190,'"Everything a vendor\nships when you order\nan operating system"','smi','start')+T(560,270,'good approximation,\nbut varies wildly','sm','start'),'4'),
+steps:[{t:'The kernel',d:'<p>The narrowest definition: the OS is <em>"the one program running at all times on the computer"</em>, which is called the <em>kernel</em>.</p>'},
+ {t:'System programs',d:'<p>Programs that <em>ship with the operating system</em> but are not part of the kernel, such as the shell, compilers and utilities.</p>'},
+ {t:'Application programs',d:'<p>Everything not associated with the operation of the system: browsers, games, editors. Everything other than the kernel is either a system program or an application program.</p>'},
+ {t:'No universal definition',d:'<p>A practical answer is "everything a vendor ships when you order an operating system", but that <em>varies wildly</em> between vendors, so there is no universally accepted definition.</p>'}]});
+
+add({sec:'Introduction',title:'Computer Startup',slides:'Slide 10',
+svg:(()=>{const st=[['power on\nor reboot','k2'],['bootstrap in\nROM / EPROM','k4'],['initialize\nthe system','k3'],['load OS\nkernel','k1'],['kernel\nexecuting','k1']];let o='';
+ st.forEach(([s,c],i)=>{const x=30+i*152;o+=G(i+1,R(x,150,128,90,s,c,'smi')+(i<4?L(x+128,195,x+152,195,'a'):''),String(i+1));});
+ o+=G(2,T(246,120,'firmware','cap')+R(184,280,128,60,'ROM chip','k4','mono'),'2');
+ o+=G(3,T(398,280,'CPU registers\ndevice controllers\nmemory contents','sm'),'3');
+ o+=G(4,cyl(500,280,80,60,'disk')+L(540,280,550,244,'a')+KL('M540 330 L540 290 L550 240',2.4,'',0),'4');
+ o+=G(5,`<circle class="fillok pulse" cx="702" cy="285" r="12"/>`+T(702,318,'OS running','sm'));
+ o+=G(1,`<rect class="fillacc" x="30" y="390" width="0" height="8" rx="4"><animate attributeName="width" values="0;740" dur="6s" repeatCount="indefinite"/></rect>`+T(400,415,'time →','sm'));return o;})(),
+steps:[{t:'Power-up or reboot',d:'<p>When the machine is switched on or rebooted, memory holds nothing useful, so the CPU needs a program it can run immediately.</p>'},
+ {t:'Bootstrap program',d:'<p>That program is the <em>bootstrap program</em>. It is stored in <em>ROM or EPROM</em>, which keeps its contents without power, and is generally known as <em>firmware</em>.</p>'},
+ {t:'Initialize the system',d:'<p>The bootstrap <em>initializes all aspects of the system</em>: CPU registers, device controllers and memory contents.</p>'},
+ {t:'Load the kernel',d:'<p>It then locates the <em>operating-system kernel</em> (usually on disk) and loads it into memory.</p>'},
+ {t:'Start execution',d:'<p>Finally the bootstrap jumps to the kernel, which <em>starts execution</em> and waits for events such as interrupts and system calls.</p>'}]});
+
+/* ===== ORGANIZATION ===== */
+add({sec:'Computer-System Organization',title:'Computer System Organization',slides:'Slide 11',
+svg:G(1,R(30,200,110,56,'CPU','k1','lbb'),'1')+
+ G(2,R(180,200,120,56,'disk\ncontroller','k4','smi')+R(340,200,200,56,'USB controller','k4')+R(580,200,140,56,'graphics\nadapter','k4','smi')+
+   cyl(180,90,52,40)+cyl(242,90,52,40)+T(240,72,'disks','sm')+W('M240 130 L240 200')+
+   R(330,108,40,22,'mouse','kp','sm',10)+R(386,104,90,30,'keyboard','kp','sm',4)+R(490,104,66,30,'printer','kp','sm',4)+W('M350 130 L410 200')+W('M430 134 L440 200')+W('M520 134 L470 200')+
+   monitor(615,88,70,48)+W('M650 150 L650 200'),'2')+
+ G(3,W('M85 256 L85 290 L650 290 L650 256','thick')+W('M240 256 L240 290','thick')+W('M440 256 L440 290','thick')+W('M400 290 L400 340','thick')+R(330,340,140,56,'memory','k3','lbb')+T(520,305,'common bus','cap'),'3')+
+ G(4,K('M85 256 L85 290 L400 290 L400 345',1.8,'a',0)+K('M240 256 L240 290 L400 290 L400 345',1.8,'',.6)+K('M440 256 L440 290 L400 290 L400 345',1.8,'',1.2)+T(600,370,'all competing for\nmemory cycles','smi')),
+steps:[{t:'One or more CPUs',d:'<p>The <em>CPU</em> executes instructions. A system may have one or several.</p>'},
+ {t:'Device controllers',d:'<p>Each <em>device controller</em> is in charge of one type of device: the disk controller runs the disks, the USB controller handles mouse, keyboard and printer, the graphics adapter drives the monitor.</p>'},
+ {t:'Common bus to shared memory',d:'<p>The CPUs and controllers connect through a <em>common bus</em> that gives them all access to <em>shared memory</em>.</p>'},
+ {t:'Concurrent execution',d:'<p>CPUs and devices run <em>concurrently</em>, so they compete for memory cycles. A memory controller synchronizes access so the moving requests do not collide.</p>'}]});
+
+add({sec:'Computer-System Organization',title:'Computer-System Operation',slides:'Slide 12',
+svg:G(1,R(40,60,140,70,'CPU','k1','lbb')+R(40,300,140,70,'main memory','k3')+T(110,160,'runs a program…','sm'),'1')+
+ G(2,R(400,180,190,120,'','k4')+T(495,200,'disk controller','smi'),'2')+
+ G(2,cyl(650,200,90,70,'disk'))+
+ G(3,R(420,225,150,60,'','kp')+T(495,240,'local buffer','sm')+[0,1,2,3,4].map(i=>`<rect class="bx k2" x="${432+i*27}" y="255" width="22" height="20" rx="2"/>`).join(''),'3')+
+ G(4,P('M650 240 L575 250','s')+KL('M690 240 L560 262',2,'',0),'4')+
+ G(5,P('M420 260 L190 335','s')+KL('M440 265 L180 335',2.2,'',0)+T(290,270,'CPU moves data\nbuffer → memory','sm'),'5')+
+ G(6,P('M400 200 L185 105','s thick')+ZAP(300,150,1.4)+T(320,110,'interrupt: "done!"','smi sigt')+`<g>${ZAP(110,40,1)}${blinkOnce(1.4,.2,.6)}</g>`,'6'),
+steps:[{t:'CPU and devices run concurrently',d:'<p>The <em>CPU</em> keeps executing a program while I/O devices work at the same time.</p>'},
+ {t:'A controller per device type',d:'<p>Each <em>device controller</em> is in charge of a particular device type, such as this disk controller and its disk.</p>'},
+ {t:'Local buffer',d:'<p>Each controller has a <em>local buffer</em>, a small memory inside the controller that holds data in transit.</p>'},
+ {t:'Device → controller buffer',d:'<p>The actual I/O happens between the <em>device and the controller\'s local buffer</em>. The CPU is not involved in this part.</p>'},
+ {t:'Buffer ↔ main memory',d:'<p>The <em>CPU moves data</em> from the local buffer to main memory (or the other way for output).</p>'},
+ {t:'Interrupt when finished',d:'<p>When the operation is complete, the controller informs the CPU by causing an <em>interrupt</em>, a hardware signal that makes the CPU stop and handle the event.</p>'}]});
+
+add({sec:'Computer-System Organization',title:'Common Functions of Interrupts',slides:'Slide 13',
+svg:G(1,R(30,40,170,60,'device / timer','k4')+P('M200 70 L290 70','s thick')+ZAP(245,70,1.1)+T(245,40,'interrupt','sm'),'1')+
+ G(2,R(290,30,190,210,'','kp')+T(385,48,'interrupt vector','cap')+[['0','divide error'],['…',''],['32','timer ISR'],['33','keyboard ISR'],['46','disk ISR']].map(([n,s],i)=>R(300,64+i*34,170,28,'','k1','sm',3)+T(318,78+i*34,n,'mono','start')+T(350,78+i*34,s?'→ '+s:'','smi','start')).join('')+`<rect class="kn" x="298" y="198" width="174" height="32" rx="4" style="stroke:var(--sig);stroke-width:3"/>`+T(385,256,'example numbers (x86-style)','sm'),'2')+
+ G(3,R(560,150,200,80,'disk interrupt\nservice routine','k2')+P('M480 212 L560 196','a'),'3')+
+ G(4,R(560,280,200,90,'','k4')+T(660,298,'saved state','cap')+T(660,325,'return address','mono')+T(660,350,'0x4A3C  ←','mono acct'),'4')+
+ G(4,R(30,280,200,90,'','k3')+T(130,298,'interrupted program','cap')+T(130,332,'… add r1, r2\n▶ 0x4A3C …','mono'),'4')+
+ G(4,P('M230 330 L560 330','a d'))+
+ G(5,R(30,140,200,100,'','k5')+T(130,158,'trap / exception','cap')+T(130,195,'software-generated:\nan error (÷0) or a\nuser request (syscall)','smi'),'5')+
+ G(6,R(240,385,320,40,'the OS is interrupt driven','k1','lbb'),'6'),
+steps:[{t:'An interrupt arrives',d:'<p>A device or timer raises an <em>interrupt</em> signal, asking the CPU for attention.</p>'},
+ {t:'Interrupt vector',d:'<p>Control is transferred through the <em>interrupt vector</em>: a table holding the addresses of all the service routines, indexed by interrupt number. The numbers here are just examples.</p>'},
+ {t:'Interrupt service routine',d:'<p>The CPU jumps to the matching <em>interrupt service routine (ISR)</em>, the code that handles this kind of event.</p>'},
+ {t:'Save the return address',d:'<p>The interrupt architecture must <em>save the address of the interrupted instruction</em>, so the interrupted program can continue exactly where it stopped.</p>'},
+ {t:'Traps and exceptions',d:'<p>A <em>trap</em> (or exception) is a <em>software-generated interrupt</em>, caused either by an error such as division by zero or by a user request for an OS service.</p>'},
+ {t:'Interrupt-driven OS',d:'<p>After booting, the OS mostly waits. It runs because of events, so it is <em>interrupt driven</em>.</p>'}]});
+
+add({sec:'Computer-System Organization',title:'Interrupt Handling',slides:'Slide 14',
+svg:G(1,R(30,40,220,150,'','k1')+T(140,58,'CPU state','cap')+['PC  = 0x4A3C','R1  = 0007','R2  = 00FF','SP  = 7FF0'].map((s,i)=>T(60,88+i*24,s,'mono','start')).join('')+R(30,220,220,100,'','k4')+T(140,238,'saved in memory','cap')+P('M140 190 L140 220','a')+KL('M140 140 L140 270',2,'a',0),'1')+
+ G(2,R(290,40,220,280,'','kp')+T(400,58,'polling','cap')+R(325,80,150,40,'CPU','k1')+['disk?','keyboard?','network?','timer?'].map((s,i)=>R(330,150+i*40,140,30,s,'k4','smi',4)).join('')+`<rect class="kn" x="326" y="146" width="148" height="38" rx="5" style="stroke:var(--sig);stroke-width:3"><animate attributeName="y" values="146;186;226;266;146" dur="3.2s" repeatCount="indefinite" calcMode="discrete"/></rect>`,'2')+
+ G(3,R(550,40,220,280,'','kp')+T(660,58,'vectored','cap')+R(585,80,150,40,'CPU','k1')+R(590,250,140,40,'disk: "I am #46"','k4','smi',4)+P('M660 250 L660 125','s')+KL('M660 245 L660 125',1.6,'',0),'3')+
+ G(4,R(30,350,740,60,'','k3')+T(400,368,'separate code segment per interrupt type','cap')+T(400,393,'timer → schedule next job  ·  disk → wake waiting process  ·  keyboard → buffer the key','smi'),'4'),
+steps:[{t:'Preserve CPU state',d:'<p>Before handling the interrupt, the OS <em>stores the registers and the program counter</em> so the interrupted work can be resumed exactly.</p>'},
+ {t:'Which interrupt? Polling',d:'<p>One way to find the source is <em>polling</em>: the CPU asks each device in turn "was it you?". Simple, but slow when there are many devices.</p>'},
+ {t:'Which interrupt? Vectored',d:'<p>In a <em>vectored interrupt system</em> the device sends a number with the interrupt, so the CPU indexes straight into the interrupt vector. Much faster.</p>'},
+ {t:'Separate code per type',d:'<p><em>Separate segments of code</em> decide what to do for each type of interrupt.</p>'}]});
+
+add({sec:'Computer-System Organization',title:'Interrupt Timeline',slides:'Slide 15',
+svg:T(30,60,'CPU','lbb','start')+T(110,50,'user process\nexecuting','sm','start')+T(110,125,'I/O interrupt\nprocessing','sm','start')+T(30,215,'I/O\ndevice','lbb','start')+T(110,200,'idle','sm','start')+T(110,262,'transferring','sm','start')+
+ W('M30 330 L780 330')+
+ G(1,W('M210 60 L370 60 L370 115 L395 115 L395 60 L560 60 L560 115 L585 115 L585 60 L770 60','a thick'),'1')+
+ G(2,W('M210 200 L250 200 L250 262 L370 262 L370 200 L520 200 L520 262 L585 262 L585 200 L770 200','s thick'),'2')+
+ G(3,W('M250 30 L250 330','d')+T(250,360,'I/O\nrequest','smi')+W('M520 30 L520 330','d')+T(520,360,'I/O\nrequest','smi'),'3')+
+ G(4,W('M370 30 L370 330','d')+T(370,360,'transfer\ndone','smi')+ZAP(382,90,0.9)+W('M585 30 L585 330','d')+T(585,360,'transfer\ndone','smi')+ZAP(597,90,0.9),'4')+
+ G(5,`<line class="ln r" x1="210" y1="20" x2="210" y2="330" style="stroke-width:2.5"><animate attributeName="x1" values="210;770" dur="7s" repeatCount="indefinite"/><animate attributeName="x2" values="210;770" dur="7s" repeatCount="indefinite"/></line>`),
+steps:[{t:'CPU line',d:'<p>The top trace shows what the CPU does: mostly <em>executing the user process</em>, with short dips into <em>I/O interrupt processing</em>.</p>'},
+ {t:'I/O device line',d:'<p>The bottom trace shows the device: <em>idle</em>, or <em>transferring</em> data.</p>'},
+ {t:'I/O request',d:'<p>At an <em>I/O request</em> the device starts transferring, while the CPU <em>keeps running</em> the user process. Both work at the same time.</p>'},
+ {t:'Transfer done → interrupt',d:'<p>When the <em>transfer is done</em>, the device interrupts. The CPU briefly switches to interrupt processing, then returns to the user process.</p>'},
+ {t:'Watch it play',d:'<p>The red cursor sweeps through time. The pattern repeats for every I/O request: overlap work, and interrupt only at completion.</p>'}]});
+
+add({sec:'Computer-System Organization',title:'I/O Structure',slides:'Slide 16',
+svg:T(30,30,'synchronous: wait for I/O','cap','start')+
+ G(1,R(30,45,90,40,'program','k3','smi')+R(130,45,260,40,'','k4')+T(260,65,'waiting… CPU idle','smi')+R(400,45,110,40,'program','k3','smi')+`<rect class="fillsig" x="130" y="88" width="0" height="6"><animate attributeName="width" values="0;260" dur="4s" repeatCount="indefinite"/></rect>`,'1')+
+ G(2,T(560,65,'wait instruction or\nwait loop','sm','start'),'2')+
+ G(3,R(30,110,480,34,'only one I/O request outstanding at a time','k5','smi'),'3')+
+ T(30,180,'asynchronous: continue without waiting','cap','start')+
+ G(4,R(30,195,480,40,'program keeps running','k3','smi')+`<rect class="fillsig" x="30" y="238" width="0" height="6"><animate attributeName="width" values="0;480" dur="4s" repeatCount="indefinite"/></rect>`,'4')+
+ G(5,R(560,195,210,40,'system call: "wait\nfor my I/O" (optional)','k1','sm'),'5')+
+ G(6,R(30,270,740,150,'','kp')+T(400,288,'device-status table','cap')+
+   [['device','status','request queue'],['card reader 1','idle',''],['line printer 3','busy','address 38546, length 1372'],['disk unit 2','busy','file xxx, read … → file yyy, write …']].map((r,i)=>r.map((c,j)=>T([50,240,380][j],312+i*26,c,i?'smi':'sm','start')).join('')).join('')+`<rect class="kn" x="44" y="350" width="720" height="24" rx="4" style="stroke:var(--sig);stroke-width:2.5"><animate attributeName="y" values="324;350;376;324" dur="3s" repeatCount="indefinite" calcMode="discrete"/></rect>`,'6'),
+steps:[{t:'Synchronous I/O',d:'<p>After I/O starts, <em>control returns to the user program only when the I/O completes</em>. The CPU sits idle in the meantime.</p>'},
+ {t:'How the CPU waits',d:'<p>Either a <em>wait instruction</em> idles the CPU until the next interrupt, or a <em>wait loop</em> spins, which also causes contention for memory access.</p>'},
+ {t:'One request at a time',d:'<p>With synchronous I/O <em>at most one request is outstanding</em> at a time, so there is no simultaneous I/O processing.</p>'},
+ {t:'Asynchronous I/O',d:'<p>After I/O starts, <em>control returns to the user program immediately</em>, without waiting for completion. The program and the device overlap.</p>'},
+ {t:'System call to wait',d:'<p>If the program does need the result, it makes a <em>system call</em>, a request to the OS to let it wait for I/O completion.</p>'},
+ {t:'Device-status table',d:'<p>The OS keeps a <em>device-status table</em> with an entry for each device: its type, address and state, plus queued requests. On an interrupt the OS indexes into the table to find and update the device\'s entry. Rows shown are textbook-style examples.</p>'}]});
+
+/* ===== STORAGE ===== */
+add({sec:'Storage',title:'Storage Definitions and Notation',slides:'Slide 17',
+svg:G(1,`<rect class="bx k2" x="40" y="40" width="50" height="50" rx="6"/><text class="hero" x="65" y="66" text-anchor="middle" style="font-size:30px">0<animate attributeName="opacity" values="1;1;0;0" dur="2s" repeatCount="indefinite"/></text><text class="hero" x="65" y="66" text-anchor="middle" style="font-size:30px;fill:var(--acc)">1<animate attributeName="opacity" values="0;0;1;1" dur="2s" repeatCount="indefinite"/></text>`+T(65,110,'bit','lbb'),'1')+
+ G(2,[...'01001011'].map((b,i)=>R(130+i*30,45,26,40,b,'k2','mono',3)).join('')+T(250,110,'byte = 8 bits','lbb'),'2')+
+ G(3,[...Array(8)].map((_,i)=>R(400+i*46,45,42,40,'B'+i,'k1','mono',3)).join('')+T(584,110,'64-bit word = 8 bytes','lbb'),'3')+
+ G(4,[['KB','1,024 B',1],['MB','1,024² B',2],['GB','1,024³ B',3],['TB','1,024⁴ B',4],['PB','1,024⁵ B',5]].map(([u,v,k],i)=>T(40,170+i*44,u,'lbb','start')+T(90,170+i*44,v,'mono','start')+`<rect class="fillacc" x="200" y="${160+i*44}" width="${k*90}" height="20" rx="4" style="opacity:${0.35+k*0.13}"/>`).join(''),'4')+
+ G(5,R(560,300,210,100,'','k3')+T(665,325,'networks count bits','cap')+T(665,362,'100 Mb/s = bits,\nnot bytes','smi'),'5'),
+steps:[{t:'Bit',d:'<p>The basic unit of storage is the <em>bit</em>, which holds 0 or 1. All other storage is built from collections of bits.</p>'},
+ {t:'Byte',d:'<p>A <em>byte</em> is 8 bits, the smallest convenient chunk on most computers. Machines usually have an instruction to move a byte, not a single bit.</p>'},
+ {t:'Word',d:'<p>A <em>word</em> is the architecture\'s native unit of data, one or more bytes. A machine with 64-bit registers and addressing typically has 64-bit (8-byte) words.</p>'},
+ {t:'KB → PB',d:'<p>Each unit is 1,024 times the previous: KB = 1,024 bytes, MB = 1,024², GB = 1,024³, TB = 1,024⁴, PB = 1,024⁵. Manufacturers often round these to 10³, 10⁶ and so on.</p>'},
+ {t:'Networking is the exception',d:'<p>Network speeds are given in <em>bits</em>, because networks move data one bit at a time.</p>'}]});
+
+add({sec:'Storage',title:'Storage Structure',slides:'Slide 18',
+svg:G(1,R(30,40,230,170,'','k3')+T(145,58,'main memory','cap')+[...Array(24)].map((_,i)=>`<rect class="bx kp" x="${45+(i%6)*34}" y="${75+Math.floor(i/6)*30}" width="28" height="24" rx="2"/>`).join('')+`<rect class="fillsig" x="0" y="0" width="28" height="24" rx="2"><animate attributeName="x" values="45;181;113;79;215;45" dur="3s" repeatCount="indefinite" calcMode="discrete"/><animate attributeName="y" values="75;135;105;165;75;75" dur="3s" repeatCount="indefinite" calcMode="discrete"/></rect>`+T(145,232,'CPU accesses directly · random access','sm'),'1')+
+ G(2,ZAP(250,30,0.9)+T(145,262,'volatile: lost when power is off','smi badt'),'2')+
+ G(3,`<g class="spin" style="animation-duration:3s"><circle class="bx k4" cx="420" cy="140" r="95"/>${[75,55,35].map(r=>`<circle class="ln" style="stroke-width:1" cx="420" cy="140" r="${r}"/>`).join('')}${[0,45,90,135].map(a=>`<line class="ln" style="stroke-width:1" x1="420" y1="45" x2="420" y2="235" transform="rotate(${a} 420 140)"/>`).join('')}<path class="fillsig" d="M420 140 L420 65 A75 75 0 0 1 473 87 Z" style="opacity:.6"/></g><circle class="fillink" cx="420" cy="140" r="6"/>`+W('M560 260 L470 100','thick')+T(420,262,'track → sectors','smi'),'3')+
+ G(4,R(560,270,200,60,'disk controller','k4','smi')+T(420,300,'hard disk: magnetic platters','sm'),'4')+
+ G(5,R(560,60,200,140,'','k6')+T(660,80,'solid-state disk','cap')+[0,1,2,3].map(i=>R(580+i*44,100,36,60,'','kp','sm',3)).join('')+T(660,182,'no moving parts','sm'),'5')+
+ G(6,R(30,345,740,70,'','kp')+T(400,365,'secondary storage','cap')+T(400,392,'extension of main memory · large · nonvolatile','smi'),'6'),
+steps:[{t:'Main memory',d:'<p><em>Main memory</em> is the only large storage the CPU can access directly. It is <em>random access</em>: any location can be read in about the same time (the highlighted cell jumps around).</p>'},
+ {t:'Volatile',d:'<p>Main memory is <em>typically volatile</em>: its contents are lost when power is removed. That is why we need another kind of storage.</p>'},
+ {t:'Hard disk',d:'<p><em>Hard disks</em> are rigid metal or glass <em>platters</em> covered with magnetic material. The surface is divided into <em>tracks</em>, which are subdivided into <em>sectors</em>.</p>'},
+ {t:'Disk controller',d:'<p>The <em>disk controller</em> determines the logical interaction between the device and the computer.</p>'},
+ {t:'Solid-state disk',d:'<p><em>Solid-state disks</em> are faster than hard disks and also nonvolatile. They use various technologies (mainly flash) and are becoming more popular.</p>'},
+ {t:'Secondary storage',d:'<p>Disks and SSDs are <em>secondary storage</em>: an extension of main memory that provides <em>large, nonvolatile</em> capacity.</p>'}]});
+
+add({sec:'Storage',title:'Storage-Device Hierarchy',slides:'Slides 19–20',
+svg:(()=>{const lv=['registers','cache','main memory','solid-state disk','hard disk','optical disk','magnetic tapes'];let o='';
+ lv.forEach((s,i)=>{const w=150+i*60,x=330-w/2,y=30+i*52;o+=G(1,R(x,y,w,40,s,i<3?'k1':i<5?'k3':'k4','smi'),'1');});
+ o+=G(2,P('M640 370 L640 40','a thick')+T(670,205,'faster','smi','start'),'2');
+ o+=G(3,P('M710 370 L710 40','s thick')+T(720,250,'costlier\nper byte','smi','start'),'3');
+ o+=G(4,W('M70 180 L590 180','r d thick')+T(70,165,'volatile ↑','smi badt','start')+T(70,196,'nonvolatile ↓','smi okt','start'),'4');
+ o+=G(5,KL('M330 270 L330 140 L330 50',2.6,'',0)+T(470,135,'copy to faster level\n= caching','sm','start'),'5');
+ o+=G(6,R(560,385,210,40,'device driver ↔ controller','k2','sm'),'6');return o;})(),
+steps:[{t:'Organized as a hierarchy',d:'<p>Storage systems form a <em>hierarchy</em>, from tiny registers at the top to huge magnetic tapes at the bottom.</p>'},
+ {t:'Speed',d:'<p>The higher the level, the <em>faster</em> the access.</p>'},
+ {t:'Cost',d:'<p>The higher the level, the <em>more expensive per byte</em>, which is why the upper levels are small.</p>'},
+ {t:'Volatility',d:'<p>Levels above the line (registers, cache, main memory) are <em>volatile</em>. Levels below keep data without power.</p>'},
+ {t:'Caching',d:'<p><em>Caching</em> copies information into a faster storage level. Main memory can be viewed as a cache for secondary storage.</p>'},
+ {t:'Device drivers',d:'<p>Each device controller has a <em>device driver</em> that manages I/O and gives the kernel a <em>uniform interface</em> to the controller.</p>'}]});
+
+add({sec:'Storage',title:'Caching',slides:'Slide 21',
+svg:G(1,R(40,160,120,70,'CPU','k1','lbb')+R(260,140,160,110,'','k2')+T(340,156,'cache (small)','cap')+R(520,110,250,170,'','k3')+T(645,126,'main memory (large)','cap')+['A','B','C','D','E','F','G','H'].map((s,i)=>R(540+(i%4)*56,150+Math.floor(i/4)*56,48,44,s,'kp','mono',3)).join(''),'1')+
+ G(2,P('M160 180 L260 180','a')+T(210,165,'need C?','sm')+R(280,175,52,36,'A','kp','mono',3)+R(345,175,52,36,'—','kp','mono',3)+XMARK(290,268,11)+T(308,268,'miss','smi badt','start'),'2')+
+ G(3,KL('M652 172 L470 172 L371 193',2.2,'',0)+P('M520 190 L420 190','s')+T(470,215,'copy C in','sm'),'3')+
+ G(4,R(345,175,52,36,'C','k2','mono',3)+P('M260 205 L160 205','a')+CHECK(370,268,11)+T(388,268,'hit: fast','smi okt','start'),'4')+
+ G(5,R(40,320,730,90,'','kp')+T(400,340,'cache management','cap')+T(400,375,'cache size + replacement policy: when full, which line gets evicted?','smi'),'5'),
+steps:[{t:'A principle used everywhere',d:'<p>Caching is performed at many levels: in hardware, in the OS and in software. Information in use is copied temporarily from slower to faster storage.</p>'},
+ {t:'Check the cache first',d:'<p>The faster storage (the <em>cache</em>) is checked first. Here C is not there: a <em>miss</em>.</p>'},
+ {t:'On a miss, copy it in',d:'<p>The data is copied from the slower storage into the cache and used there.</p>'},
+ {t:'On a hit, use it directly',d:'<p>Next time C is needed, it is found in the cache and used directly. That is a <em>hit</em>, and it is fast.</p>'},
+ {t:'Cache management',d:'<p>The cache is <em>smaller</em> than the storage it caches, so its <em>size</em> and <em>replacement policy</em> are an important design problem.</p>'}]});
+
+add({sec:'Storage',title:'Direct Memory Access Structure',slides:'Slide 22',
+svg:T(200,30,'without DMA','cap')+T(600,30,'with DMA','cap')+
+ G(1,R(40,60,120,60,'CPU','k1','lbb')+R(40,300,120,60,'memory','k3')+R(250,180,110,60,'fast device','k4','smi')+
+   [0,.25,.5,.75].map(b=>KL('M300 180 L100 120 L100 300',1,'',b)).join('')+`<g>${ZAP(180,120,0.9)}${blinkOnce(0.5,.1,.5)}</g>`+T(200,400,'one interrupt per byte','smi badt'),'1')+
+ G(2,W('M400 40 L400 420','d'),'2')+
+ G(3,R(440,60,120,60,'CPU','k1','lbb')+R(440,300,120,60,'memory','k3')+R(640,180,130,60,'controller\n+ DMA','k4','smi')+
+   `<g>${KL('M700 240 L700 330 L560 330',2,'',0)}</g>`+T(640,290,'whole block,\nno CPU','sm','start')+T(500,165,'CPU free for\nother work','sm'),'3')+
+ G(4,`<g>${P('M640 200 L560 90','s')}${ZAP(600,140,1)}<animate attributeName="opacity" values="0;0;1;0" keyTimes="0;.85;.9;1" dur="2s" repeatCount="indefinite"/></g>`+T(600,400,'one interrupt per block','smi okt'),'4'),
+steps:[{t:'The problem',d:'<p>For a <em>high-speed device</em> that transfers data at close to memory speed, interrupting the CPU for every byte would swamp it.</p>'},
+ {t:'Compare the two',d:'<p>Left: programmed, byte-at-a-time I/O. Right: Direct Memory Access.</p>'},
+ {t:'Controller moves the block',d:'<p>With DMA, the <em>device controller transfers whole blocks</em> from its buffer directly to main memory <em>without CPU intervention</em>. The CPU only sets up the transfer.</p>'},
+ {t:'One interrupt per block',d:'<p>Only <em>one interrupt per block</em> is generated, instead of one per byte. The CPU is free to do useful work meanwhile.</p>'}]});
+
+add({sec:'Storage',title:'How a Modern Computer Works',slides:'Slide 23',
+svg:G(1,R(40,40,260,190,'','k4')+R(260,40,40,190,'','k1')+T(280,135,'cache','sm')+T(150,210,'CPU (×N)','lbb')+`<path class="ln a" style="stroke-width:3" d="M150 70 q10 10 0 20 q-10 10 0 20 q10 10 0 20 q-10 10 0 20"><animate attributeName="stroke-dashoffset" values="0;-40" dur="1s" repeatCount="indefinite"/></path>`+T(150,180,'thread of execution','sm'),'1')+
+ G(2,R(540,40,220,300,'','k4')+T(650,140,'instructions\nand data','lbb')+T(650,320,'memory','smi'),'2')+
+ G(3,LL(300,80,540,80,'a')+T(420,65,'instruction execution cycle','sm')+KL('M520 80 L310 80',1.8,'a',0),'3')+
+ G(4,LL(300,130,540,130,'s')+T(420,115,'data movement','sm')+KL('M310 130 L520 130 L310 130',2.6,'',0),'4')+
+ G(5,`<polygon class="bx k1" points="130,330 150,300 170,330 205,320 185,350 205,380 170,370 150,400 130,370 95,380 115,350 95,320"/>`+T(150,350,'device\n(×M)','sm')+L(70,230,120,312,'s')+T(60,268,'I/O\nrequest','sm')+LL(150,232,150,298,'s')+T(178,268,'data','sm')+P('M195 318 L240 232','s')+T(250,275,'interrupt','sm','start'),'5')+
+ G(6,P('M205 340 L540 260','a thick')+T(380,320,'DMA','lbb')+KL('M210 340 L540 262',2,'',0),'6'),
+steps:[{t:'CPU',d:'<p>One or more CPUs, each running a <em>thread of execution</em>, with a <em>cache</em> next to the core.</p>'},
+ {t:'Memory',d:'<p>This is a <em>von Neumann architecture</em>: <em>instructions and data</em> live together in the same memory.</p>'},
+ {t:'Instruction execution cycle',d:'<p>The CPU repeatedly fetches an instruction from memory, decodes it and executes it.</p>'},
+ {t:'Data movement',d:'<p>Instructions load data from memory into registers and store results back.</p>'},
+ {t:'Devices, requests and interrupts',d:'<p>The CPU issues <em>I/O requests</em> to devices, data flows between them, and devices signal completion with an <em>interrupt</em>.</p>'},
+ {t:'DMA path',d:'<p>Fast devices use <em>DMA</em> to move data straight into memory without passing through the CPU.</p>'}]});
+
+/* ===== ARCHITECTURE ===== */
+add({sec:'Computer-System Architecture',title:'Computer-System Architecture',slides:'Slide 24',
+svg:G(1,R(40,40,150,80,'general-purpose\nCPU','k1','smi'),'1')+
+ G(2,R(220,40,120,36,'disk μP','k4','sm')+R(220,84,120,36,'keyboard μP','k4','sm')+T(280,140,'special-purpose','sm'),'2')+
+ G(3,[0,1,2,3].map(i=>R(400+i*95,40,80,80,'CPU '+i,'k1','smi')).join('')+T(580,140,'multiprocessor (parallel, tightly coupled)','sm'),'3')+
+ G(4,R(40,180,230,110,'','k3')+T(155,198,'increased throughput','cap')+[0,1,2,3].map(i=>KL(`M60 ${226+i*14} L250 ${226+i*14}`,2,'',i*.3)).join('')+
+   R(285,180,230,110,'','k3')+T(400,198,'economy of scale','cap')+T(400,245,'share power supply,\nstorage, peripherals','smi')+
+   R(530,180,230,110,'','k3')+T(645,198,'increased reliability','cap')+[0,1,2].map(i=>R(560+i*60,225,50,40,'','k1')).join('')+XMARK(645,245,14)+T(645,278,'graceful degradation','sm'),'4')+
+ G(5,R(40,320,350,100,'','k2')+T(215,338,'asymmetric','cap')+R(60,355,90,40,'boss','k1','smi')+[0,1,2].map(i=>W(`M105 395 L105 410 L${209+i*68} 410 L${209+i*68} 395`,'a')+R(180+i*68,355,58,40,'w'+i,'k4','sm')).join(''),'5')+
+ G(6,R(410,320,350,100,'','k2')+T(585,338,'symmetric (SMP)','cap')+[0,1,2,3].map(i=>R(430+i*80,355,70,40,'peer','k1','smi')).join(''),'6'),
+steps:[{t:'Single general-purpose processor',d:'<p>Most systems use a <em>single general-purpose processor</em> that runs user and OS code.</p>'},
+ {t:'Special-purpose processors',d:'<p>Most systems also have <em>special-purpose processors</em> (in disk controllers, keyboards, graphics) that run limited instruction sets, not user processes.</p>'},
+ {t:'Multiprocessors',d:'<p><em>Multiprocessor systems</em>, also called <em>parallel</em> or <em>tightly coupled</em> systems, are growing in use and importance.</p>'},
+ {t:'Three advantages',d:'<p><em>Increased throughput</em> (more work per unit time), <em>economy of scale</em> (shared peripherals and storage cost less than many machines) and <em>increased reliability</em>: if one CPU fails the rest keep going (<em>graceful degradation</em> or <em>fault tolerance</em>).</p>'},
+ {t:'Asymmetric multiprocessing',d:'<p>Each processor is assigned a <em>specific task</em>; a boss processor controls the system and gives work to the others.</p>'},
+ {t:'Symmetric multiprocessing',d:'<p>Each processor performs <em>all tasks</em>, including OS functions. All processors are peers.</p>'}]});
+
+add({sec:'Computer-System Architecture',title:'Symmetric Multiprocessing Architecture',slides:'Slide 25',
+svg:[0,1,2].map(i=>{const x=60+i*240;return G(1,R(x,40,200,200,'','k4')+T(x+100,62,'CPU'+String.fromCharCode(8320+i),'lbb'),'1')+G(2,R(x+40,90,120,46,'registers','kp'),'2')+G(3,R(x+40,160,120,46,'cache','kp')+W(`M${x+100} 136 L${x+100} 160`),'3')+G(4,W(`M${x+100} 206 L${x+100} 290`,'thick')+KL(`M${x+100} 200 L${x+100} 290 L400 290 L400 340`,2.4,i==1?'a':'',i*.7));}).join('')+
+ G(4,W('M160 290 L640 290','thick')+R(330,340,140,50,'memory','k1','lbb'),'4'),
+steps:[{t:'Several identical CPUs',d:'<p>In SMP every CPU is a full processor, and any of them can run any task, including the kernel.</p>'},
+ {t:'Private registers',d:'<p>Each CPU has its own set of <em>registers</em>.</p>'},
+ {t:'Private cache',d:'<p>Each CPU has its own (local) <em>cache</em>, which is why keeping caches consistent matters later.</p>'},
+ {t:'Shared physical memory',d:'<p>All CPUs share <em>physical memory</em> over the system bus. N processes can run on N CPUs at once, but the OS must balance load and avoid one CPU idling while another is overloaded.</p>'}]});
+
+add({sec:'Computer-System Architecture',title:'A Dual-Core Design',slides:'Slide 26',
+svg:G(1,R(40,30,480,290,'','k1')+T(280,48,'one chip','cap'),'1')+
+ [0,1].map(i=>{const x=70+i*230;return G(2,R(x,65,190,230,'','k4')+T(x+95,88,'CPU core'+String.fromCharCode(8320+i),'lbb'),'2')+G(3,R(x+35,110,120,44,'registers','kp')+R(x+35,180,120,44,'cache','kp')+W(`M${x+95} 154 L${x+95} 180`),'3')+G(4,W(`M${x+95} 224 L${x+95} 300 L280 300 L280 360`,'thick')+KL(`M${x+95} 220 L${x+95} 300 L280 300 L280 360`,2.2,i?'a':'',i),'4');}).join('')+
+ G(4,R(210,360,140,46,'memory','k3','lbb'),'4')+
+ G(5,R(560,30,210,100,'','k2')+T(665,48,'multi-chip','cap')+R(580,70,80,44,'chip','k1','sm')+R(670,70,80,44,'chip','k1','sm')+
+   R(560,150,210,100,'','k2')+T(665,168,'multicore','cap')+R(580,190,170,44,'core · core · core','k1','sm')+
+   R(560,270,210,100,'','k2')+T(665,288,'chassis / blades','cap')+[0,1,2,3].map(i=>R(580+i*44,308,36,50,'','k4')).join(''),'5'),
+steps:[{t:'One chip',d:'<p>A <em>multicore</em> design puts several computing cores on a single chip.</p>'},
+ {t:'Two cores',d:'<p>Each core is a complete CPU. On-chip communication is faster than chip-to-chip, and one chip with several cores uses less power than several chips.</p>'},
+ {t:'Per-core registers and cache',d:'<p>Each core has its own <em>registers</em> and its own <em>cache</em> (many designs also add a shared cache).</p>'},
+ {t:'Shared memory',d:'<p>Both cores reach the same <em>memory</em>, so to the OS a dual-core chip looks like two processors.</p>'},
+ {t:'Multi-chip, multicore, chassis',d:'<p>Systems can have multiple chips, multiple cores per chip, or a <em>chassis containing multiple separate systems</em> (blade servers). Note that multicore systems are multiprocessor systems, but not all multiprocessor systems are multicore.</p>'}]});
+
+add({sec:'Computer-System Architecture',title:'Clustered Systems',slides:'Slides 27–28',
+svg:(()=>{let o='';const xs=[60,230,400,570];
+ o+=G(1,xs.map((x,i)=>server(x+30,40,70,90)+T(x+65,150,'computer '+(i+1),'sm')).join(''),'1');
+ o+=G(1,W('M60 185 L740 185','thick')+xs.map(x=>W(`M${x+65} 130 L${x+65} 185`)).join('')+T(400,170,'interconnect','cap'),'1');
+ o+=G(2,xs.map(x=>W(`M${x+65} 185 L${x+65} 230`)).join('')+R(160,230,480,50,'storage-area network (SAN)','k3','smi')+cyl(360,300,80,60,'shared disks')+W('M400 280 L400 300'),'2');
+ o+=G(3,T(400,395,'high availability: service survives failures','smi okt'),'3');
+ o+=G(4,`<g>${XMARK(125,85,16)}</g>`+T(125,30,'active fails','sm badt')+`<rect class="kn" x="${570+25}" y="35" width="80" height="100" rx="6" style="stroke:var(--ok);stroke-width:3"/>`+T(635,28,'hot standby takes over','sm okt'),'4');
+ o+=G(5,xs.slice(0,3).map((x,i)=>KL(`M${x+65} 60 L${x+65} 185 L${xs[(i+1)%3]+65} 185 L${xs[(i+1)%3]+65} 60`,3,'a',i*.9)).join('')+T(400,215,'symmetric: all run apps & monitor each other','sm'),'5');
+ o+=G(6,R(560,300,210,90,'','k2')+T(665,318,'HPC + DLM','cap')+T(665,355,'parallelized apps;\nlock manager avoids\nconflicting operations','sm'),'6');return o;})(),
+steps:[{t:'Multiple systems working together',d:'<p>Like multiprocessors, but built from <em>multiple independent computers</em> linked by a fast interconnect (LAN or InfiniBand).</p>'},
+ {t:'Shared storage',d:'<p>Nodes usually <em>share storage</em> through a <em>storage-area network (SAN)</em>, so any node can reach the data.</p>'},
+ {t:'High availability',d:'<p>Clustering provides a <em>high-availability</em> service that keeps running even when parts of the cluster fail.</p>'},
+ {t:'Asymmetric clustering',d:'<p>One machine sits in <em>hot-standby mode</em>, only monitoring the active server. If the active server fails, the standby takes over.</p>'},
+ {t:'Symmetric clustering',d:'<p><em>Multiple nodes run applications</em> and monitor each other, which uses all the hardware.</p>'},
+ {t:'HPC and DLM',d:'<p>Some clusters exist for <em>high-performance computing</em>; applications must be written to use <em>parallelization</em>. Some include a <em>distributed lock manager (DLM)</em> to avoid conflicting operations on shared data.</p>'}]});
+
+/* ===== OS STRUCTURE & OPERATIONS ===== */
+add({sec:'OS Structure & Operations',title:'Operating System Structure',slides:'Slide 29',
+svg:G(1,R(40,40,170,300,'','k4')+T(125,58,'memory','cap')+R(55,75,140,40,'OS','k1','smi')+['job 1','job 2','job 3','job 4'].map((s,i)=>R(55,125+i*52,140,44,s,'k3','smi')).join(''),'1')+
+ G(2,R(300,140,130,70,'CPU','k1','lbb')+`<rect class="kn" x="52" y="122" width="146" height="50" rx="8" style="stroke:var(--sig);stroke-width:3"><animate attributeName="y" values="122;174;226;278;122" dur="6s" repeatCount="indefinite" calcMode="discrete"/></rect>`+P('M200 175 L300 175','s'),'2')+
+ G(3,R(300,260,130,60,'I/O','k4','lbb')+T(365,345,'job waiting for I/O\n→ switch to another','sm'),'3')+
+ G(4,R(490,40,280,170,'','k6')+T(630,58,'time-sharing','cap')+[0,1,2].map(i=>person(530+i*90,110)+monitor(510+i*90,135,40,26)).join('')+T(630,195,'switch so often users interact','sm')+`<rect class="fillacc" x="510" y="72" width="40" height="6" rx="3"><animate attributeName="x" values="510;600;690;510" dur="1.5s" repeatCount="indefinite" calcMode="discrete"/></rect>`,'4')+
+ G(5,R(490,230,280,80,'','k2')+T(630,248,'CPU scheduling','cap')+T(630,282,'several ready jobs → pick one','smi'),'5')+
+ G(6,R(490,325,280,95,'','k5')+T(630,343,'swapping + virtual memory','cap')+T(630,380,'move processes in/out;\nrun programs not fully in memory','smi')+cyl(240,355,70,55,'disk')+LL(320,382,490,382,'a d'),'6'),
+steps:[{t:'Multiprogramming',d:'<p>One user cannot keep the CPU and I/O devices busy all the time. <em>Multiprogramming</em> (batch systems) keeps <em>several jobs</em> (code and data) in memory, a subset of all jobs in the system.</p>'},
+ {t:'Job scheduling',d:'<p>One job is selected and run via <em>job scheduling</em>. The highlight shows which job owns the CPU.</p>'},
+ {t:'Switch on I/O wait',d:'<p>When the running job has to wait (for I/O, for example), the OS <em>switches to another job</em>, so the CPU always has something to execute.</p>'},
+ {t:'Time-sharing (multitasking)',d:'<p>A logical extension: the CPU switches jobs <em>so frequently</em> that each user can interact with their program while it runs. Response time should be <em>under 1 second</em>. Each user has at least one program executing in memory, a <em>process</em>.</p>'},
+ {t:'CPU scheduling',d:'<p>If several jobs are ready to run at the same time, the OS must choose: <em>CPU scheduling</em>.</p>'},
+ {t:'Swapping and virtual memory',d:'<p>If processes do not fit in memory, <em>swapping</em> moves them in and out. <em>Virtual memory</em> allows a process to run even when it is not completely in memory.</p>'}]});
+
+add({sec:'OS Structure & Operations',title:'Memory Layout for Multiprogrammed System',slides:'Slide 30',
+svg:G(1,R(260,30,280,70,'operating system','k4','lbb')+T(240,30,'0','mono','end'),'1')+
+ G(2,['job 1','job 2','job 3','job 4'].map((s,i)=>R(260,100+i*72,280,72,s,'k1','lbb')).join('')+T(240,388,'512M','mono','end'),'2')+
+ G(3,`<rect class="kn" x="256" y="96" width="288" height="80" rx="6" style="stroke:var(--sig);stroke-width:3"><animate attributeName="y" values="96;168;240;312;96" dur="4s" repeatCount="indefinite" calcMode="discrete"/></rect>`+R(600,170,150,60,'CPU','k1','lbb')+P('M600 200 L545 200','s'),'3'),
+steps:[{t:'The OS lives in memory',d:'<p>The operating system occupies a fixed region of memory, here starting at address <em>0</em>.</p>'},
+ {t:'Several jobs at once',d:'<p>The rest of memory (up to 512M in this example) holds <em>several jobs simultaneously</em>, each in its own region.</p>'},
+ {t:'CPU switches among them',d:'<p>Because all four are already in memory, the OS can switch the CPU from one job to another instantly when one waits.</p>'}]});
+
+add({sec:'OS Structure & Operations',title:'Operating-System Operations',slides:'Slide 31',
+svg:G(1,R(300,160,200,90,'operating\nsystem','k1','lbb')+T(400,270,'interrupt driven','cap'),'1')+
+ G(2,R(40,40,170,60,'disk / keyboard','k4','smi')+P('M210 70 L330 160','s thick')+ZAP(270,110,1)+T(125,120,'hardware interrupt','smi'),'2')+
+ G(3,R(590,40,170,60,'x = a / 0','k5','mono')+P('M590 70 L470 160','r thick')+T(675,120,'software error → trap','smi'),'3')+
+ G(3,R(590,300,170,60,'read(file)','k3','mono')+P('M590 330 L470 245','a thick')+T(675,380,'request for OS service','smi'),'3')+
+ G(4,R(40,300,170,60,'while(1){ }','k5','mono')+T(125,380,'infinite loop','smi')+R(40,190,170,60,'P1 ⟶ P2 memory','k5','smi')+T(125,265,'processes modifying\neach other or the OS','sm'),'4'),
+steps:[{t:'Interrupt driven',d:'<p>The OS spends its time waiting for events; it runs in response to <em>interrupts</em>, both hardware and software.</p>'},
+ {t:'Hardware interrupt',d:'<p>Raised by <em>one of the devices</em>, for example a disk finishing a read or a key being pressed.</p>'},
+ {t:'Software interrupt (exception or trap)',d:'<p>Raised by a running program, either from a <em>software error</em> (division by zero) or as a <em>request for an OS service</em> (a system call such as read).</p>'},
+ {t:'Other process problems',d:'<p>The OS must also deal with an <em>infinite loop</em> that never gives up the CPU, and processes <em>modifying each other or the OS</em>. The next two scenes show the tools for this: dual mode and the timer.</p>'}]});
+
+add({sec:'OS Structure & Operations',title:'Dual-Mode Operation',slides:'Slide 32',
+svg:G(1,R(40,40,330,150,'','k3')+T(205,60,'user mode','cap')+T(205,110,'applications','lbb')+R(430,40,330,150,'','k1')+T(595,60,'kernel mode','cap')+T(595,110,'operating system','lbb'),'1')+
+ G(2,R(320,220,160,80,'','k2')+T(400,238,'mode bit','cap')+`<text class="hero" x="400" y="275" text-anchor="middle" style="font-size:34px">1<animate attributeName="opacity" values="1;1;0;0" dur="4s" repeatCount="indefinite"/></text><text class="hero" x="400" y="275" text-anchor="middle" style="font-size:34px;fill:var(--acc)">0<animate attributeName="opacity" values="0;0;1;1" dur="4s" repeatCount="indefinite"/></text>`+T(205,160,'mode bit = 1','mono')+T(595,160,'mode bit = 0','mono'),'2')+
+ G(3,R(470,320,290,90,'','kp')+T(615,338,'privileged instructions','cap')+T(615,375,'I/O control · timer\ninterrupt management','smi')+R(40,320,290,90,'','kp')+T(185,338,'user tries one','cap')+XMARK(110,375)+T(210,375,'trap to OS','smi badt'),'3')+
+ G(4,P('M300 180 Q400 235 470 180','a thick')+KL('M300 170 Q400 230 480 170 Q400 120 300 170',4,'',0)+T(400,140,'system call ⇄ return','sm'),'4')+
+ G(5,R(560,230,200,70,'','k6')+T(660,248,'multi-mode CPUs','cap')+T(660,278,'e.g. VMM mode for guests','sm'),'5'),
+steps:[{t:'Two modes',d:'<p><em>Dual-mode operation</em> lets the OS protect itself and other system components. The CPU is either in <em>user mode</em> (running applications) or <em>kernel mode</em> (running the OS).</p>'},
+ {t:'Mode bit',d:'<p>A <em>mode bit</em> provided by the hardware tells which one is running: 1 for user, 0 for kernel.</p>'},
+ {t:'Privileged instructions',d:'<p>Some instructions are <em>privileged</em> and only executable in kernel mode. If user code tries one, the hardware traps to the OS instead of executing it.</p>'},
+ {t:'System call switches mode',d:'<p>A <em>system call</em> changes the mode to kernel; <em>returning from the call</em> resets it to user.</p>'},
+ {t:'More than two modes',d:'<p>Increasingly, CPUs support <em>multi-mode</em> operation, such as a <em>virtual machine manager (VMM)</em> mode for guest VMs.</p>'}]});
+
+add({sec:'OS Structure & Operations',title:'Transition from User to Kernel Mode',slides:'Slide 33',
+svg:G(1,R(30,30,620,90,'','k4')+T(60,46,'user process','sm','start')+R(50,65,170,36,'user process executing','kp','sm')+R(260,65,140,36,'calls system call','kp','sm')+R(450,65,180,36,'return from system call','kp','sm')+L(220,83,260,83)+T(710,62,'user mode\n(mode bit = 1)','sm')+
+   W('M20 135 L780 135','thick')+R(30,150,620,90,'','k1')+T(60,166,'kernel','sm','start')+R(270,190,180,36,'execute system call','kp','sm')+T(710,190,'kernel mode\n(mode bit = 0)','sm')+
+   P('M330 101 L330 190','s')+T(300,145,'trap\nbit = 0','sm','end')+P('M450 200 L540 101','s')+T(560,145,'return\nbit = 1','sm','start')+KL('M135 83 L330 83 L330 208 L450 208 L540 83 L560 83',5,'a',0),'1')+
+ G(2,R(30,270,330,140,'','k2')+T(195,288,'timer','cap')+`<rect class="bx kp" x="60" y="315" width="270" height="26" rx="4"/><rect class="fillsig" x="60" y="315" width="270" height="26" rx="4"><animate attributeName="width" values="270;0" dur="4s" repeatCount="indefinite"/></rect>`+T(195,370,'counter decremented by the clock','sm'),'2')+
+ G(3,R(380,270,390,60,'OS sets counter (privileged)','k1','smi'),'3')+
+ G(4,`<g>${ZAP(345,328,1.2)}<animate attributeName="opacity" values="0;0;1;0" keyTimes="0;.93;.96;1" dur="4s" repeatCount="indefinite"/></g>`+R(380,345,390,65,'','k3')+T(575,365,'counter hits 0 → interrupt','cap')+T(575,392,'OS regains control or ends the program','smi'),'4'),
+steps:[{t:'The round trip',d:'<p>The user process runs in user mode. When it <em>calls a system call</em>, a trap sets the mode bit to 0 and the kernel executes the call. <em>Returning</em> sets the bit back to 1.</p>'},
+ {t:'A timer',d:'<p>What if a process loops forever and never makes a system call? A <em>timer</em> prevents an infinite loop or a process hogging resources. A counter is decremented by the physical clock.</p>'},
+ {t:'OS sets the counter',d:'<p>Before scheduling a process, the OS <em>sets the counter</em>. Doing so is a privileged instruction, so user code cannot disable the timer.</p>'},
+ {t:'Counter reaches zero',d:'<p>When the counter reaches zero it <em>generates an interrupt</em>, so the OS regains control and can reschedule, or terminate a program that exceeded its allotted time.</p>'}]});
+
+/* ===== RESOURCE MANAGEMENT ===== */
+add({sec:'Resource Management',title:'Process Management',slides:'Slide 34',
+svg:G(1,doc(60,60,70,90)+T(95,170,'program','lbb')+T(95,195,'passive, on disk','sm')+P('M150 105 L250 105','a thick')+T(200,90,'load + run','sm')+
+   R(260,40,220,170,'','k3')+T(370,58,'process (active)','cap')+R(275,75,90,30,'code','kp','sm')+R(375,75,90,30,'data','kp','sm')+R(275,115,190,30,'PC → next instr.','k2','mono'),'1')+
+ G(2,R(520,40,250,170,'','kp')+T(645,58,'needs resources','cap')+['CPU','memory','I/O','files'].map((s,i)=>R(540+(i%2)*115,80+Math.floor(i/2)*50,100,40,s,'k4','smi')).join('')+T(645,190,'+ initialization data','sm'),'2')+
+ G(3,R(520,214,250,30,'termination → OS reclaims resources','k5','sm',5),'3')+
+ GE(4,5,R(40,250,340,160,'','k1')+T(210,268,'single-threaded','cap')+[0,1,2,3,4,5].map(i=>R(60+i*50,300,42,30,'i'+i,'kp','mono',3)).join('')+`<path class="fillsig" d="M0 0 L8 -12 L-8 -12 Z"><animateMotion dur="3s" repeatCount="indefinite" path="M81 298 L331 298" calcMode="discrete" keyPoints="0;0.2;0.4;0.6;0.8;1" keyTimes="0;0.2;0.4;0.6;0.8;1"/></path>`+T(210,360,'one PC, one instruction at a time','sm'),'4')+
+ GE(4,5,R(410,250,360,160,'','k6')+T(590,268,'multi-threaded','cap')+[0,1].map(r=>[0,1,2,3,4].map(i=>R(430+i*62,295+r*48,52,30,'t'+r+'·'+i,'kp','mono',3)).join('')).join('')+[0,1].map(r=>`<path class="fillsig" d="M0 0 L8 -12 L-8 -12 Z"><animateMotion dur="${2+r}s" repeatCount="indefinite" path="M456 ${293+r*48} L704 ${293+r*48}"/></path>`).join('')+T(590,395,'one PC per thread','sm'),'4')+
+ G(5,R(40,250,730,160,'','kp')+T(405,268,'concurrency by multiplexing the CPUs','cap')+['user P1','OS P2','user P3','user P4'].map((s,i)=>R(70+i*175,295,150,40,s,i==1?'k1':'k3','smi')).join('')+`<rect class="kn" x="66" y="291" width="158" height="48" rx="7" style="stroke:var(--sig);stroke-width:3"><animate attributeName="x" values="66;241;416;591;66" dur="3s" repeatCount="indefinite" calcMode="discrete"/></rect>`+T(405,370,'many processes, one or more CPUs','sm'),'5'),
+steps:[{t:'Program vs process',d:'<p>A <em>process is a program in execution</em>, the unit of work in the system. A program is a <em>passive</em> entity (a file); a process is <em>active</em>.</p>'},
+ {t:'Resources',d:'<p>A process needs resources to do its task: <em>CPU, memory, I/O, files</em>, plus initialization data.</p>'},
+ {t:'Termination',d:'<p>When a process terminates, the OS must <em>reclaim any reusable resources</em> it held.</p>'},
+ {t:'Single- vs multi-threaded',d:'<p>A <em>single-threaded</em> process has one <em>program counter</em> pointing to the next instruction and executes sequentially until completion. A <em>multi-threaded</em> process has <em>one program counter per thread</em>.</p>'},
+ {t:'Concurrency',d:'<p>A system typically has many processes, some user and some OS, running concurrently. The OS achieves this by <em>multiplexing the CPUs</em> among processes and threads.</p>'}]});
+
+add({sec:'Resource Management',title:'Process Management Activities',slides:'Slide 35',
+svg:[['create / delete','user & system processes',(x,y)=>R(x,y,34,30,'+','k3','lbb',4)+R(x+46,y,34,30,'×','k5','lbb',4)],
+ ['suspend / resume','pause and continue',(x,y)=>`<rect class="fillacc" x="${x+14}" y="${y}" width="10" height="30"/><rect class="fillacc" x="${x+30}" y="${y}" width="10" height="30"/><path class="fillok" d="M${x+54} ${y} L${x+78} ${y+15} L${x+54} ${y+30} Z"/>`],
+ ['synchronization','coordinate shared data',(x,y)=>lock(x+40,y+12)],
+ ['communication','exchange messages',(x,y)=>R(x,y,24,30,'P','k3','sm',4)+R(x+56,y,24,30,'Q','k3','sm',4)+KL(`M${x+24} ${y+15} L${x+56} ${y+15}`,1.5,'',0)],
+ ['deadlock handling','break circular waits',(x,y)=>`<circle class="ln s" cx="${x+40}" cy="${y+15}" r="17" style="stroke-width:3" marker-end="url(#ahS)"/>`]]
+ .map(([a,b,ic],i)=>{const x=30+i*152;return G(i+1,R(x,90,140,230,'','kp')+ic(x+30,130)+T(x+70,220,a,'smi')+T(x+70,250,b,'sm'),String(i+1));}).join('')+
+ T(400,40,'The OS is responsible for:','lbb'),
+steps:[{t:'Creating and deleting processes',d:'<p>Both <em>user and system processes</em> must be created (allocated resources) and deleted (resources reclaimed).</p>'},
+ {t:'Suspending and resuming',d:'<p>The OS can <em>pause</em> a process and later <em>resume</em> it exactly where it stopped.</p>'},
+ {t:'Process synchronization',d:'<p>Mechanisms (such as locks) so cooperating processes do not corrupt shared data.</p>'},
+ {t:'Process communication',d:'<p>Mechanisms for processes to <em>exchange information</em>, such as messages or shared memory.</p>'},
+ {t:'Deadlock handling',d:'<p>Mechanisms to deal with <em>deadlock</em>, where processes wait on each other in a circle forever.</p>'}]});
+
+add({sec:'Resource Management',title:'Memory Management',slides:'Slide 36',
+svg:G(1,R(40,60,140,70,'CPU','k1','lbb')+P('M180 95 L300 95','a')+T(240,80,'executes only\nfrom memory','sm')+cyl(60,250,100,80,'program\non disk')+P('M160 290 L300 290','s')+T(230,275,'load','sm'),'1')+
+ G(2,R(300,40,200,360,'','k4')+T(400,58,'memory','cap')+R(315,75,170,50,'OS','k1','smi')+R(315,135,170,60,'P1 code+data','k3','smi')+R(315,205,170,40,'free','kp','sm')+R(315,255,170,70,'P2 (part)','k3','smi')+R(315,335,170,50,'free','kp','sm'),'2')+
+ G(3,R(540,40,230,110,'','kp')+T(655,58,'tracking','cap')+T(655,90,'0–49  OS\n50–109  P1\n150–219  P2','mono'),'3')+
+ G(4,R(540,170,230,90,'','k2')+T(655,188,'decide in / out','cap')+T(655,222,'which processes and\ndata move in or out','sm')+KL('M480 280 L600 280',2,'',0),'4')+
+ G(5,R(540,280,230,120,'','k3')+T(655,298,'allocate / free','cap')+R(315,205,170,40,'P3 (new)','k6','smi')+T(655,340,'give space on demand,\nreclaim it afterwards','sm'),'5'),
+steps:[{t:'Programs must be in memory',d:'<p>To execute a program, all (or part) of its <em>instructions</em> and the <em>data</em> it needs must be in memory.</p>'},
+ {t:'What is in memory, and when',d:'<p>Memory management decides <em>what is in memory and when</em>, to optimize CPU utilization and the computer\'s response to users.</p>'},
+ {t:'Keep track of usage',d:'<p>Activity 1: track <em>which parts of memory are in use and by whom</em>.</p>'},
+ {t:'Move in and out',d:'<p>Activity 2: decide <em>which processes (or parts of them) and data to move into and out of memory</em>.</p>'},
+ {t:'Allocate and deallocate',d:'<p>Activity 3: <em>allocate and deallocate</em> memory space as needed. Here a new process P3 gets a free hole.</p>'}]});
+
+add({sec:'Resource Management',title:'Storage Management',slides:'Slide 37',
+svg:G(1,R(40,40,220,80,'','k1')+T(150,58,'logical view','cap')+doc(70,70,30,38)+T(170,90,'report.txt','mono'),'1')+
+ G(2,R(40,140,220,120,'','kp')+T(150,158,'devices differ','cap')+T(150,200,'speed · capacity ·\ntransfer rate ·\nsequential / random','sm')+cyl(560,50,90,70,'disk')+R(670,60,100,50,'tape','k4','smi'),'2')+
+ G(3,R(300,40,220,220,'','k3')+T(410,58,'file system','cap')+T(410,90,'/','mono')+W('M410 98 L340 130 M410 98 L480 130')+R(305,130,70,26,'home','kp','mono',3)+R(445,130,70,26,'etc','kp','mono',3)+W('M340 156 L340 180')+R(305,180,70,26,'ali','kp','mono',3)+W('M340 206 L340 228')+R(300,228,80,24,'report.txt','k2','mono',3),'3')+
+ G(4,lock(500,232)+T(470,272,'rwx: who can access','sm'),'4')+
+ G(5,R(560,150,210,110,'','kp')+T(665,168,'mapping onto disk','cap')+[0,1,2,3,4,5,6,7].map(i=>`<rect class="bx ${[1,4,5].includes(i)?'k2':'kp'}" x="${575+(i%4)*46}" y="${185+Math.floor(i/4)*34}" width="40" height="28" rx="3"/>`).join('')+P('M380 240 L575 214','a d'),'5')+
+ G(6,R(40,300,730,110,'','kp')+T(405,318,'OS file activities','cap')+['create / delete files & dirs','primitives to manipulate','map to secondary storage','back up to stable media'].map((s,i)=>R(55+i*180,340,170,50,s,'k1','sm')).join(''),'6'),
+steps:[{t:'A uniform, logical view',d:'<p>The OS hides physical details behind one logical storage unit, the <em>file</em>.</p>'},
+ {t:'Many kinds of media',d:'<p>Each medium (disk drive, tape drive) is controlled by a device, and they differ in <em>access speed, capacity, data-transfer rate</em> and <em>access method</em> (sequential or random).</p>'},
+ {t:'Directories',d:'<p>Files are usually organized into <em>directories</em>, forming a tree.</p>'},
+ {t:'Access control',d:'<p>Most systems apply <em>access control</em> to decide who can access what.</p>'},
+ {t:'Mapping files to disk',d:'<p>The OS maps each file onto blocks of secondary storage; the user never sees those blocks.</p>'},
+ {t:'OS activities',d:'<p>Creating and deleting files and directories, primitives to manipulate them, mapping files onto secondary storage, and backing them up to stable (nonvolatile) media.</p>'}]});
+
+add({sec:'Resource Management',title:'Mass-Storage Management',slides:'Slide 38',
+svg:G(1,cyl(40,50,150,120,'disk')+T(115,200,'data too big for memory,\nor kept for a long time','sm'),'1')+
+ G(2,R(230,40,250,80,'','kp')+T(355,56,'free-space management','cap')+[...'1101001110011010'].map((b,i)=>R(242+i*14.5,74,12,22,'',b=='1'?'k2':'kp','sm',2)).join('')+T(355,108,'1 = used, 0 = free','sm'),'2')+
+ G(3,R(230,135,250,60,'storage allocation','k3','smi'),'3')+
+ G(4,R(230,210,250,170,'','kp')+T(355,226,'disk scheduling','cap')+W('M250 260 L460 260','d')+[98,183,37,122,14,124,65,67].map((c,i)=>`<circle class="fillacc" cx="${250+c*1.05}" cy="${280+i*10}" r="4"/>`).join('')+`<rect class="fillsig" x="0" y="245" width="6" height="140"><animate attributeName="x" values="${[53,65,67,98,122,124,183].map(c=>250+c*1.05).join(';')}" dur="5s" repeatCount="indefinite" calcMode="discrete"/></rect>`,'4')+
+ G(5,R(520,40,250,340,'','k4')+T(645,58,'tertiary storage','cap')+`<circle class="bx kp" cx="600" cy="130" r="40"/><circle class="fillmut" cx="600" cy="130" r="8"/>`+T(600,190,'optical','sm')+`<rect class="bx kp" x="660" y="100" width="90" height="60" rx="5"/><circle class="ln" cx="685" cy="130" r="13"/><circle class="ln" cx="725" cy="130" r="13"/>`+T(705,190,'tape','sm')+R(540,230,210,50,'WORM: write once,\nread many','k2','sm')+R(540,295,210,50,'RW: read-write','k3','sm'),'5'),
+steps:[{t:'Why disks matter',d:'<p>Disks store data that <em>does not fit in main memory</em> or must be kept for a long time. The speed of the whole computer can hinge on the disk subsystem and its algorithms.</p>'},
+ {t:'Free-space management',d:'<p>The OS tracks which blocks are free, for example with a bitmap.</p>'},
+ {t:'Storage allocation',d:'<p>It decides which free blocks to give to each file.</p>'},
+ {t:'Disk scheduling',d:'<p>It orders pending requests to reduce head movement. The amber head services the dots in cylinder order instead of arrival order.</p>'},
+ {t:'Tertiary storage',d:'<p>Some storage need not be fast: <em>optical storage</em> and <em>magnetic tape</em>. It must still be managed, by the OS or by applications, and varies between <em>WORM</em> (write-once, read-many-times) and <em>RW</em> (read-write).</p>'}]});
+
+add({sec:'Resource Management',title:'Performance of Various Levels of Storage',slides:'Slide 39',
+svg:(()=>{const h=['Level','Name','Typical size','Access (ns)','Bandwidth (MB/s)','Managed by','Backed by'];
+ const rows=[['1','registers','< 1 KB','0.25–0.5','20,000–100,000','compiler','cache'],['2','cache','< 16 MB','0.5–25','5,000–10,000','hardware','main memory'],['3','main memory','< 64 GB','80–250','1,000–5,000','OS','disk'],['4','solid state disk','< 1 TB','25,000–50,000','500','OS','disk'],['5','magnetic disk','< 10 TB','5,000,000','20–150','OS','disk or tape']];
+ const xs=[30,80,200,310,420,570,670];let o=G(0,h.map((s,j)=>T(xs[j],40,s,'sm','start')).join('')+W('M30 56 L780 56'));
+ rows.forEach((r,i)=>{o+=G(i+1,`<rect class="${['k1','k1','k3','k6','k4'][i]}" x="24" y="${66+i*52}" width="756" height="44" rx="5"/>`+r.map((s,j)=>T(xs[j],88+i*52,s,j==3?'mono acct':j<2?'smi':'mono','start')).join(''),String(i+1));});
+ o+=G(6,R(30,340,750,70,'','k2')+T(405,358,'movement between levels','cap')+T(405,388,'explicit (OS moves disk ↔ memory)  ·  implicit (hardware moves memory ↔ cache)','smi'),'6');return o;})(),
+steps:[{t:'Registers',d:'<p>The fastest storage, inside the CPU. Allocation is decided by the <em>compiler</em>. Values in this table are the textbook\'s typical figures from 2013, so treat them as orders of magnitude.</p>'},
+ {t:'Cache',d:'<p>On-chip or off-chip SRAM, managed automatically by <em>hardware</em>, backed by main memory.</p>'},
+ {t:'Main memory',d:'<p>DRAM, managed by the <em>OS</em>, backed by disk. Roughly hundreds of times slower than registers.</p>'},
+ {t:'Solid-state disk',d:'<p>Flash memory, managed by the OS. Tens of microseconds per access.</p>'},
+ {t:'Magnetic disk',d:'<p>Milliseconds per access (5,000,000 ns), managed by the OS and backed by more disk or tape. Note the jump of many orders of magnitude from top to bottom.</p>'},
+ {t:'Explicit vs implicit movement',d:'<p>Moving data between levels can be <em>explicit</em> (the OS copies between disk and memory) or <em>implicit</em> (hardware copies between memory and cache, invisible to the OS).</p>'}]});
+
+add({sec:'Resource Management',title:'Migration of Data "A" from Disk to Register',slides:'Slide 40',
+svg:G(1,['hard\ndisk','main\nmemory','cache','hardware\nregister'].map((s,i)=>R(30+i*200,50,130,80,s,'k1','lbb')+(i<3?`<path class="bx k4" d="M${160+i*200} 75 L${200+i*200} 75 L${200+i*200} 65 L${226+i*200} 90 L${200+i*200} 115 L${200+i*200} 105 L${160+i*200} 105 Z"/>`+T(185+i*200,90,'A','mono'):'')).join('')+W('M95 130 L95 150 L695 150 L695 130','d')+KL('M95 150 L695 150',4,'',0),'1')+
+ G(2,R(30,170,360,240,'','kp')+T(210,188,'multitasking','cap')+R(60,210,120,50,'P1 reads A','k3','smi')+R(240,210,120,50,'P2 reads A','k3','smi')+T(210,300,'must use the most\nrecent value of A,\nwherever it is stored','smi'),'2')+
+ G(3,R(420,170,350,240,'','kp')+T(595,188,'multiprocessor: cache coherency','cap')+R(445,215,140,70,'','k4')+T(515,232,'CPU 0 cache','sm')+R(605,215,140,70,'','k4')+T(675,232,'CPU 1 cache','sm')+R(490,250,50,26,'A=5','k2','mono',3)+`<rect class="bx k2" x="650" y="250" width="50" height="26" rx="3"/><text class="mono" x="675" y="263" text-anchor="middle">A=<tspan>4<animate attributeName="opacity" values="1;1;0;0" dur="3s" repeatCount="indefinite"/></tspan></text><text class="mono acct" x="694" y="263" text-anchor="middle">5<animate attributeName="opacity" values="0;0;1;1" dur="3s" repeatCount="indefinite"/></text>`+P('M540 300 Q595 330 650 300','a')+T(595,355,'hardware updates all copies','sm'),'3')+
+ G(4,T(595,390,'distributed: many copies on many machines','sm badt'),'4'),
+steps:[{t:'A climbs the hierarchy',d:'<p>To use integer <em>A</em>, it is copied from the hard disk to main memory, then to the cache, then to a hardware register. Now <em>several copies</em> of A exist at once.</p>'},
+ {t:'Multitasking',d:'<p>In a multitasking system, every process must <em>use the most recent value</em> of A, no matter which level of the hierarchy holds it.</p>'},
+ {t:'Multiprocessors',d:'<p>With several CPUs, each cache may hold its own copy. Hardware must provide <em>cache coherency</em> so that all CPUs see the most recent value.</p>'},
+ {t:'Distributed systems',d:'<p>Across machines it is even more complex: several copies of a datum can exist on different computers. The book covers solutions in Chapter 17.</p>'}]});
+
+add({sec:'Resource Management',title:'I/O Subsystem',slides:'Slide 41',
+svg:G(1,R(40,30,720,50,'user programs: read(), write()','k3','smi')+T(400,100,'peculiarities of hardware hidden from the user','sm'),'1')+
+ G(2,R(40,115,720,110,'','k1')+T(400,132,'I/O subsystem: memory management of I/O','cap')+R(60,150,215,60,'buffering','kp','smi')+R(292,150,215,60,'caching','kp','smi')+R(525,150,215,60,'spooling','kp','smi'),'2')+
+ G(3,[0,1,2,3].map(i=>`<rect class="bx k2" x="${75+i*44}" y="${190}" width="36" height="12" rx="2"><animate attributeName="opacity" values="${['1;0;0;0','1;1;0;0','1;1;1;0','1;1;1;1'][i]}" dur="2.4s" repeatCount="indefinite" calcMode="discrete"/></rect>`).join('')+T(167,240,'hold data while in transit','sm'),'3')+
+ G(4,R(330,185,140,18,'hot data copy','k2','sm',3)+T(400,240,'faster copy for performance','sm'),'4')+
+ G(5,[0,1,2].map(i=>doc(560+i*30,175-i*4,24,30)).join('')+T(632,240,'queue jobs\' output (printer)','sm'),'5')+
+ G(6,R(40,265,720,50,'general device-driver interface','k6','smi')+['disk driver','USB driver','network driver','printer driver'].map((s,i)=>R(40+i*185,330,165,40,s,'k4','sm')+W(`M${122+i*185} 370 L${122+i*185} 390`)+R(70+i*185,390,105,28,['disk','keyboard','NIC','printer'][i],'kp','sm',4)).join(''),'6'),
+steps:[{t:'Hide the hardware',d:'<p>One purpose of the OS is to <em>hide the peculiarities of hardware devices</em> from the user. Programs just call read() and write().</p>'},
+ {t:'The I/O subsystem',d:'<p>The <em>I/O subsystem</em> is responsible for memory management of I/O: buffering, caching and spooling.</p>'},
+ {t:'Buffering',d:'<p><em>Storing data temporarily while it is being transferred</em>, for example between a fast and a slow device.</p>'},
+ {t:'Caching',d:'<p><em>Storing parts of data in faster storage</em> for performance.</p>'},
+ {t:'Spooling',d:'<p><em>Overlapping the output of one job with the input of other jobs</em>. Print jobs queue up while programs continue.</p>'},
+ {t:'Drivers',d:'<p>A <em>general device-driver interface</em> lets the kernel treat devices uniformly, and <em>drivers for specific hardware devices</em> handle the details.</p>'}]});
+
+/* ===== PROTECTION & KERNEL DS ===== */
+add({sec:'Protection & Kernel Data Structures',title:'Protection and Security',slides:'Slide 42',
+svg:G(1,R(40,40,150,60,'process','k3')+P('M190 70 L320 70','a')+R(320,30,160,80,'','k1')+T(400,50,'protection','cap')+lock(400,72)+P('M480 70 L600 70','g')+R(600,40,160,60,'file / memory','k4','smi'),'1')+
+ G(2,R(40,130,720,90,'','k5')+T(400,148,'security: defend against internal and external attacks','cap')+['denial-of-service','worms','viruses','identity theft','theft of service'].map((s,i)=>R(60+i*140,170,130,36,s,'kp','sm',4)).join(''),'2')+
+ G(3,R(40,250,240,160,'','kp')+T(160,268,'user identities','cap')+person(100,320)+T(190,310,'ali','mono')+T(190,334,'UID 1001','mono acct'),'3')+
+ G(4,R(290,250,230,160,'','kp')+T(405,268,'group ID','cap')+[0,1,2].map(i=>person(345+i*55,320,'fillok')).join('')+T(405,370,'GID 50 "students"','mono okt'),'4')+
+ G(4,T(160,380,'UID tagged on every\nfile and process','sm'))+
+ G(5,R(530,250,230,160,'','k2')+T(645,268,'privilege escalation','cap')+T(645,310,'UID 1001','mono')+P('M645 325 L645 355','s')+T(645,370,'effective ID 0','mono sigt')+T(645,395,'(e.g. setuid, sudo)','sm'),'5'),
+steps:[{t:'Protection',d:'<p><em>Protection</em> is any mechanism for controlling the access of processes or users to resources defined by the OS.</p>'},
+ {t:'Security',d:'<p><em>Security</em> is the defense of the system against internal and external attacks: denial-of-service, worms, viruses, identity theft, theft of service and more.</p>'},
+ {t:'User identities',d:'<p>Systems first distinguish among users. A <em>user ID</em> (security ID on Windows) is a name plus an associated number, one per user, and it is attached to every file and process that user owns to decide access.</p>'},
+ {t:'Group identifiers',d:'<p>A <em>group ID</em> defines a set of users so access can be managed for all of them at once. It is also associated with each process and file.</p>'},
+ {t:'Privilege escalation',d:'<p><em>Privilege escalation</em> lets a user change to an <em>effective ID</em> with more rights, for a specific task.</p>'}]});
+
+add({sec:'Protection & Kernel Data Structures',title:'Kernel Data Structures: Lists',slides:'Slide 43',
+svg:(()=>{const node=(x,y,v,dbl)=>R(x,y,dbl?86:66,40,'','k1')+T(x+(dbl?43:24),y+20,v,'mono')+(dbl?W(`M${x+20} ${y} L${x+20} ${y+40}`)+W(`M${x+66} ${y} L${x+66} ${y+40}`):W(`M${x+46} ${y} L${x+46} ${y+40}`));let o='';
+ o+=G(1,T(40,40,'singly linked list','cap','start')+[0,1,2,3].map(i=>node(40+i*130,60,'data',0)+(i<3?L(96+i*130,80,170+i*130,80):T(96+i*130,105,'null','mono'))).join('')+`<path class="fillsig" d="M0 0 L8 -12 L-8 -12 Z"><animateMotion dur="3s" repeatCount="indefinite" path="M65 58 L455 58"/></path>`+T(640,80,'next →','smi'),'1');
+ o+=G(2,T(40,145,'doubly linked list','cap','start')+[0,1,2,3].map(i=>node(40+i*150,165,'data',1)+(i<3?L(116+i*150,177,190+i*150,177,'a')+L(190+i*150,195,116+i*150,195,'s'):'')).join('')+`<path class="fillsig" d="M0 0 L8 -12 L-8 -12 Z"><animateMotion dur="5s" repeatCount="indefinite" path="M83 163 L533 163 L83 163"/></path>`+T(690,185,'← prev · next →','smi'),'2');
+ o+=G(3,T(40,255,'circular linked list','cap','start')+[0,1,2,3].map(i=>node(40+i*130,275,'data',0)+(i<3?L(96+i*130,295,170+i*130,295):'')).join('')+P('M486 295 L520 295 L520 350 L20 350 L20 295 L40 295')+`<path class="fillsig" d="M0 0 L8 -12 L-8 -12 Z"><animateMotion dur="4s" repeatCount="indefinite" path="M65 273 L455 273 L520 330 L20 330 L65 273"/></path>`,'3');
+ o+=G(4,R(570,250,200,160,'','k2')+T(670,268,'trade-off','cap')+T(670,320,'insert / delete: cheap\nsearch: O(n),\nwalk node by node','smi'),'4');return o;})(),
+steps:[{t:'Singly linked list',d:'<p>Each node holds data and a pointer to the <em>next</em> node; the last points to null. The kernel uses lists like this for many queues. The amber marker shows a traversal.</p>'},
+ {t:'Doubly linked list',d:'<p>Each node points to both the <em>next</em> and the <em>previous</em> node, so you can walk in either direction and remove a node in place.</p>'},
+ {t:'Circular linked list',d:'<p>The last node points back to the first, so traversal can loop forever, which is handy for round-robin structures.</p>'},
+ {t:'Why lists',d:'<p>Lists grow and shrink easily; inserting or deleting is cheap. Finding an item, though, takes <em>O(n)</em> time because you visit nodes one at a time.</p>'}]});
+
+add({sec:'Protection & Kernel Data Structures',title:'Kernel Data Structures: Trees',slides:'Slide 44',
+svg:(()=>{const nd=[[17,200,60],[12,120,140],[35,280,140],[6,70,220],[14,170,220],[40,330,220]];let o='';
+ o+=G(1,T(200,30,'binary search tree','cap')+W('M200 60 L120 140 M200 60 L280 140 M120 140 L70 220 M120 140 L170 220 M280 140 L330 220','thick')+nd.map(([v,x,y])=>`<circle class="bx k1" cx="${x}" cy="${y}" r="24"/>`+T(x,y,v,'mono')).join('')+T(200,290,'left ≤ parent ≤ right','smi'),'1');
+ o+=G(2,`<circle class="kn" r="29" style="stroke:var(--sig);stroke-width:4"><animateMotion dur="3s" repeatCount="indefinite" path="M200 60 L120 140 L170 220 L170 220" keyTimes="0;.33;.66;1" keyPoints="0;.48;1;1" calcMode="linear"/></circle>`+T(200,330,'find 14: 17 → 12 → 14','mono acct'),'2');
+ o+=G(3,R(430,30,340,250,'','kp')+T(600,48,'unbalanced: O(n)','cap')+[1,2,3,4,5].map(i=>`<circle class="bx k5" cx="${470+i*48}" cy="${40+i*42}" r="18"/>`+T(470+i*48,40+i*42,i*10,'mono')+(i<5?W(`M${482+i*48} ${54+i*42} L${506+i*48} ${70+i*42}`):'')).join(''),'3');
+ o+=G(4,R(430,300,340,110,'','k3')+T(600,318,'balanced: O(lg n)','cap')+T(600,360,'height stays ≈ log₂ n\n(Linux uses red-black trees)','smi'),'4');return o;})(),
+steps:[{t:'Binary search tree',d:'<p>Each node has at most two children, ordered so that <em>left ≤ parent ≤ right</em>.</p>'},
+ {t:'Searching',d:'<p>To find 14, compare at each node and go left or right: 17 → 12 → 14. Each step discards part of the tree.</p>'},
+ {t:'Worst case O(n)',d:'<p>If keys are inserted in sorted order the tree degenerates into a chain, and search becomes <em>O(n)</em>.</p>'},
+ {t:'Balanced tree O(lg n)',d:'<p>A <em>balanced</em> binary search tree keeps its height near log₂ n, so search is <em>O(lg n)</em>. Linux uses red-black trees, a balanced kind, for example in its CPU scheduler.</p>'}]});
+
+add({sec:'Protection & Kernel Data Structures',title:'Kernel Data Structures: Hash Maps and Bitmaps',slides:'Slide 45',
+svg:G(1,R(40,40,120,44,'"key"','k3','mono')+P('M160 62 L240 62','a')+R(240,30,150,64,'hash\nfunction','k1','lbb')+P('M390 62 L460 62','a')+T(425,46,'index 2','mono acct'),'1')+
+ G(2,R(460,30,310,230,'','kp')+T(615,46,'hash map (table)','cap')+[0,1,2,3,4].map(i=>R(480,62+i*35,40,29,String(i),'k4','mono',3)+R(530,62+i*35,220,29,i==2?'value':'','kp','mono',3)).join('')+`<rect class="kn" x="476" y="128" width="278" height="37" rx="5" style="stroke:var(--sig);stroke-width:3"/>`+KL('M100 62 L315 62 L540 146 L600 146',2.4,'',0)+T(615,246,'lookup in O(1) on average','sm'),'2')+
+ G(3,R(40,140,390,140,'','k2')+T(235,158,'bitmap','cap')+[...'001011101'].map((b,i)=>R(60+i*40,180,34,40,b,b=='1'?'k5':'k3','mono',3)).join('')+T(235,240,'bit i = status of item i (1 = in use)','sm')+T(235,262,'n items need only n bits','sm'),'3')+
+ G(4,R(40,310,730,100,'','k6')+T(405,328,'in the Linux source','cap')+T(405,365,'&lt;linux/list.h&gt;   &lt;linux/kfifo.h&gt;   &lt;linux/rbtree.h&gt;','mono'),'4'),
+steps:[{t:'Hash function',d:'<p>A <em>hash function</em> turns a key into a number, here an index into a table.</p>'},
+ {t:'Hash map',d:'<p>Using that index, a <em>hash map</em> associates (maps) keys to values, so lookup is O(1) on average regardless of size. Two keys can collide on the same index, which the table must handle.</p>'},
+ {t:'Bitmap',d:'<p>A <em>bitmap</em> is a string of n binary digits representing the status of n items, for example which disk blocks are free. It is extremely compact.</p>'},
+ {t:'Linux implementations',d:'<p>Linux defines these in include files: <em>&lt;linux/list.h&gt;</em> (linked lists), <em>&lt;linux/kfifo.h&gt;</em> (queues) and <em>&lt;linux/rbtree.h&gt;</em> (red-black trees).</p>'}]});
+
+/* ===== COMPUTING ENVIRONMENTS ===== */
+add({sec:'Computing Environments',title:'Traditional Computing',slides:'Slide 46',
+svg:G(1,monitor(60,60,90,60)+T(105,150,'stand-alone PC','smi'),'1')+
+ G(2,cloud(400,90,1.1)+T(400,80,'Internet','lbb')+W('M150 90 L310 90','d'),'2')+
+ G(3,server(620,40,60,90)+T(650,150,'portal: web access\nto internal systems','sm')+W('M490 90 L620 90','d')+KL('M150 90 L490 90 L620 90',3,'a',0),'3')+
+ G(4,[0,1,2].map(i=>monitor(80+i*100,230,60,40,'k4')).join('')+T(190,310,'network computers (thin clients)\n= web terminals','sm')+W('M110 230 L330 130 M210 230 L350 130 M310 230 L370 130','d'),'4')+
+ G(5,phone(440,230,36,60)+monitor(500,234,60,40,'k4')+T(500,320,'mobile: wireless','sm')+`<path class="ln a" d="M458 220 q12 -14 24 0 M452 210 q18 -22 36 0" />`,'5')+
+ G(6,R(600,220,170,110,'','k5')+T(685,238,'home','cap')+monitor(625,255,50,32)+R(690,250,60,50,'firewall','k2','sm')+T(685,345,'networking everywhere','sm'),'6'),
+steps:[{t:'Stand-alone machines',d:'<p>Traditionally, <em>stand-alone general-purpose machines</em>.</p>'},
+ {t:'Blurred by interconnection',d:'<p>The line is blurred now, as most systems interconnect with others, for example via the Internet.</p>'},
+ {t:'Portals',d:'<p><em>Portals</em> provide web access to internal systems.</p>'},
+ {t:'Thin clients',d:'<p><em>Network computers (thin clients)</em> are like web terminals: little local processing.</p>'},
+ {t:'Mobile computers',d:'<p><em>Mobile computers</em> interconnect via wireless networks.</p>'},
+ {t:'Ubiquitous networking',d:'<p>Networking is everywhere, so even home systems use <em>firewalls</em> to protect home computers from Internet attacks.</p>'}]});
+
+add({sec:'Computing Environments',title:'Mobile Computing',slides:'Slide 47',
+svg:G(1,phone(320,60,120,220)+T(380,310,'smartphone / tablet','smi'),'1')+
+ G(2,R(470,60,140,50,'GPS','k3','smi')+R(470,125,140,50,'gyroscope','k3','smi')+R(470,190,140,50,'accelerometer','k3','smi')+L(470,85,440,120,'a nohead')+L(470,150,440,150,'a nohead'),'2')+
+ G(3,R(345,100,70,70,'','k2')+`<path class="fillacc" d="M380 115 L395 150 L365 150 Z"><animateTransform attributeName="transform" type="rotate" values="-10 380 140;10 380 140;-10 380 140" dur="2s" repeatCount="indefinite"/></path>`+T(150,135,'augmented reality:\ndraw on the camera view\nusing sensor data','smi'),'3')+
+ G(4,`<path class="ln a thick" d="M300 70 q-20 -20 -40 0 M300 70 m-50 -14 q25 -25 50 0"/>`+T(170,60,'IEEE 802.11 Wi-Fi\nor cellular data','sm'),'4')+
+ G(5,R(470,270,140,40,'Apple iOS','k1','smi')+R(620,270,150,40,'Google Android','k1','smi')+T(620,330,'market leaders (per slide)','sm'),'5'),
+steps:[{t:'Handheld devices',d:'<p>Smartphones, tablets and similar. What makes them different from a "traditional" laptop?</p>'},
+ {t:'Extra hardware',d:'<p>More OS-managed features such as <em>GPS</em> and a <em>gyroscope</em>.</p>'},
+ {t:'New kinds of apps',d:'<p>Those sensors enable new types of apps, like <em>augmented reality</em>.</p>'},
+ {t:'Connectivity',d:'<p>They connect with <em>IEEE 802.11 wireless</em> or <em>cellular data networks</em>.</p>'},
+ {t:'Leading platforms',d:'<p>The slide names <em>Apple iOS</em> and <em>Google Android</em> as the leaders. That was true when the slides were written (2013); market share changes, so check current figures if you need them.</p>'}]});
+
+add({sec:'Computing Environments',title:'Distributed Computing',slides:'Slide 48',
+svg:G(1,[[120,120],[300,80],[480,140],[650,90],[220,300],[560,300]].map(([x,y])=>server(x-25,y-35,50,70)).join('')+T(400,30,'separate, possibly different systems','sm'),'1')+
+ G(2,W('M120 120 L300 80 L480 140 L650 90 M480 140 L560 300 L220 300 L120 120 M300 80 L220 300','a d')+KL('M120 120 L300 80 L480 140 L560 300',3,'',0)+T(400,410,'TCP/IP most common','sm'),'2')+
+ G(3,R(30,340,170,60,'','kp')+T(115,355,'PAN · LAN','cap')+T(115,380,'body · building','sm')+R(600,340,170,60,'','kp')+T(685,355,'MAN · WAN','cap')+T(685,380,'city · world','sm'),'3')+
+ G(4,R(300,180,200,50,'network OS','k1','smi'),'4')+
+ G(5,`<rect class="kn" x="70" y="40" width="640" height="300" rx="20" style="stroke:var(--ok);stroke-width:3;stroke-dasharray:10 8"/>`+T(400,260,'illusion of a single system','smi okt'),'5'),
+steps:[{t:'A collection of systems',d:'<p>A <em>distributed system</em> is a collection of separate, possibly heterogeneous, systems networked together.</p>'},
+ {t:'The network',d:'<p>A network is a communications path; <em>TCP/IP</em> is the most common protocol.</p>'},
+ {t:'Network scales',d:'<p><em>PAN</em> (personal area), <em>LAN</em> (local area), <em>MAN</em> (metropolitan area) and <em>WAN</em> (wide area) networks cover growing distances.</p>'},
+ {t:'Network operating system',d:'<p>A <em>network OS</em> provides features between systems across the network, with a communication scheme that lets them exchange messages.</p>'},
+ {t:'One system, apparently',d:'<p>The goal is the <em>illusion of a single system</em>.</p>'}]});
+
+add({sec:'Computing Environments',title:'Client-Server Computing',slides:'Slide 49',
+svg:G(1,R(40,40,120,60,'dumb\nterminal','k4','smi')+P('M165 70 L235 70','a')+monitor(250,40,90,56,'k1')+T(295,130,'smart PC','sm'),'1')+
+ G(2,[0,1,2].map(i=>monitor(60,180+i*80,70,44,'k1')+T(150,202+i*80,'client','sm','start')).join('')+server(560,210,70,120)+T(595,350,'server','lbb')+[0,1,2].map(i=>P(`M200 ${202+i*80} L555 ${260}`,'a d')).join('')+[0,1,2].map(i=>KL(`M200 ${202+i*80} L555 260 L200 ${202+i*80}`,3,i==1?'a':'',i*.8)).join(''),'2')+
+ G(3,R(400,40,370,60,'compute-server: run a request\n(e.g. a database query)','k3','sm'),'3')+
+ G(4,R(400,110,370,60,'file-server: store and retrieve files','k6','sm')+doc(670,215,30,38),'4'),
+steps:[{t:'From terminals to PCs',d:'<p><em>Dumb terminals</em> have been supplanted by smart PCs that do work themselves.</p>'},
+ {t:'Servers answer clients',d:'<p>Many systems are now <em>servers</em>, responding to requests generated by <em>clients</em>.</p>'},
+ {t:'Compute-server',d:'<p>Provides an interface for clients to <em>request services</em>, such as a database query; it runs the work and returns the result.</p>'},
+ {t:'File-server',d:'<p>Provides an interface for clients to <em>store and retrieve files</em>.</p>'}]});
+
+add({sec:'Computing Environments',title:'Peer-to-Peer Computing',slides:'Slide 50',
+svg:(()=>{const p=[[150,110],[330,70],[500,120],[630,240],[450,330],[220,320],[100,230]];let o='';
+ o+=G(1,p.map(([x,y])=>monitor(x-30,y-20,60,38,'k3')).join(''),'1');
+ o+=G(2,`<g>${p.map(([x,y],i)=>p.slice(i+1).filter((_,j)=>(i+j)%2==0).map(([a,b])=>W(`M${x} ${y} L${a} ${b}`,'d')).join('')).join('')}</g>`+KL('M150 110 L500 120 L450 330',2.6,'',0)+KL('M630 240 L220 320 L330 70',3,'a',1),'2');
+ o+=G(3,R(320,180,150,56,'central\nlookup','k1','smi')+P('M680 250 L475 215','s')+T(700,300,'new node\nregisters','sm'),'3');
+ o+=G(4,`<circle class="kn" cx="100" cy="230" r="20" style="stroke:var(--sig);stroke-width:2.5"><animate attributeName="r" values="10;120" dur="2s" repeatCount="indefinite"/><animate attributeName="opacity" values="1;0" dur="2s" repeatCount="indefinite"/></circle>`+T(100,290,'broadcast:\n"who has X?"','sm'),'4');
+ o+=G(5,R(560,20,210,70,'','k2')+T(665,38,'examples','cap')+T(665,66,'Napster · Gnutella · VoIP (Skype)','sm'),'5');return o;})(),
+steps:[{t:'All nodes are peers',d:'<p>P2P is another model of distributed system. It <em>does not distinguish clients and servers</em>: all nodes are peers.</p>'},
+ {t:'Client, server or both',d:'<p>Each peer may act as a client, a server or both at once, so requests flow in every direction.</p>'},
+ {t:'Join via a lookup service',d:'<p>A node must <em>join</em> the network. One way: register its service with a <em>central lookup service</em> (as Napster did).</p>'},
+ {t:'Or via discovery',d:'<p>Another way: <em>broadcast</em> a request for a service and answer others\' requests through a <em>discovery protocol</em> (as Gnutella did).</p>'},
+ {t:'Examples',d:'<p>Napster, Gnutella, and Voice over IP (VoIP) such as Skype, as listed on the slide.</p>'}]});
+
+add({sec:'Computing Environments',title:'Virtualization',slides:'Slides 51–53',
+svg:G(1,R(30,30,230,120,'','k5')+T(145,48,'emulation','cap')+R(50,65,80,40,'PowerPC\ncode','kp','sm')+P('M130 85 L160 85','s')+R(160,65,80,40,'x86 CPU','k4','sm')+T(145,130,'different CPU type · slowest','sm'),'1')+
+ G(2,R(30,165,230,70,'','k2')+T(145,183,'interpretation','cap')+T(145,212,'language not compiled to native code','sm'),'2')+
+ T(400,30,'non-virtual machine','cap')+T(640,30,'virtual machine','cap')+
+ G(3,R(300,340,200,40,'hardware','k4','smi')+R(300,290,200,40,'kernel','k1','smi')+R(300,240,200,40,'programming interface','kp','sm')+[0,1,2].map(i=>R(305+i*66,190,58,40,'proc','k3','sm')).join(''),'3')+
+ G(4,R(530,340,240,40,'hardware','k4','smi')+R(530,290,240,40,'VMM','k6','lbb')+[0,1,2].map(i=>R(533+i*80,240,74,40,'kernel','k1','sm')+R(533+i*80,190,74,40,'procs','k3','sm')+T(570+i*80,170,'VM'+(i+1),'mono')).join(''),'4')+
+ G(5,R(30,255,230,155,'','kp')+T(145,273,'use cases','cap')+T(145,345,'Mac OS X host + Windows guest\ndev for many OSes on one box\nQA testing\ndata-center management','sm'),'5')+
+ G(6,`<rect class="kn" x="526" y="286" width="248" height="48" rx="6" style="stroke:var(--sig);stroke-width:3"/>`+T(650,410,'VMM on bare metal = host (ESX, XenServer)','sm'),'6'),
+steps:[{t:'Emulation',d:'<p>Lets an OS or application run on a <em>different CPU type</em> than it was compiled for (for example PowerPC code on Intel x86). Every instruction is translated, so it is <em>generally the slowest</em> method.</p>'},
+ {t:'Interpretation',d:'<p>Used when a language is <em>not compiled to native code</em>; an interpreter executes it step by step.</p>'},
+ {t:'Non-virtual machine',d:'<p>Normally: hardware, one kernel, a programming interface, and processes on top.</p>'},
+ {t:'Virtual machine',d:'<p>With <em>virtualization</em>, an OS natively compiled for the CPU runs <em>guest OSes</em>, also natively compiled. The <em>VMM (virtual machine manager)</em> gives each VM its own virtual hardware, so each has its own kernel (for example VMware running several WinXP guests on a WinXP host).</p>'},
+ {t:'Use cases',d:'<p>Running multiple OSes on laptops and desktops (a Mac OS X host with a Windows guest), developing for several OSes without several machines, QA testing, and managing compute environments in data centers.</p>'},
+ {t:'VMM as the host',d:'<p>A VMM can <em>run natively</em> on the hardware, in which case it is the host and there is no general-purpose host OS (VMware ESX, Citrix XenServer).</p>'}]});
+
+add({sec:'Computing Environments',title:'Cloud Computing',slides:'Slides 54–55',
+svg:G(1,cloud(150,96,1.4)+T(152,84,'compute · storage · apps\nas a service','smi'),'1')+
+ G(2,R(290,40,150,40,'virtualization','k6','smi')+T(365,100,'base layer of the cloud','sm'),'2')+
+ G(3,R(470,30,300,110,'','kp')+T(620,46,'deployment','cap')+R(485,65,85,60,'public','k3','sm')+R(578,65,85,60,'private','k1','sm')+R(671,65,85,60,'hybrid','k2','sm'),'3')+
+ G(4,R(470,150,300,110,'','kp')+T(620,166,'service model','cap')+R(485,185,270,22,'SaaS: applications','k3','sm',3)+R(485,210,270,22,'PaaS: software stack (DB server)','k1','sm',3)+R(485,235,270,22,'IaaS: servers / storage','k4','sm',3),'4')+
+ G(5,cloud(80,330,0.65)+T(80,330,'Internet','smi')+R(150,300,80,60,'firewall','k5','sm')+R(260,300,100,60,'load\nbalancer','k2','sm')+[0,1,2].map(i=>server(390+i*70,285,50,90)).join('')+W('M140 330 L150 330 M230 330 L260 330')+W('M360 330 L390 315 M360 330 L460 330 M360 330 L530 345','d'),'5')+
+ G(5,[0,1,2].map(i=>KL(`M60 330 L310 330 L${415+i*70} 330`,2.4,i==1?'a':'',i*.8)).join(''))+
+ G(6,R(600,285,170,110,'','k6')+T(685,305,'cloud management','cap')+T(685,345,'traditional OSes\n+ VMMs\n+ management tools','sm'),'6'),
+steps:[{t:'Service over a network',d:'<p>Cloud computing delivers <em>computing, storage and even applications as a service</em> across a network, often paid by usage. Amazon EC2 is the slide\'s example, with thousands of servers and millions of VMs.</p>'},
+ {t:'Built on virtualization',d:'<p>The cloud is a <em>logical extension of virtualization</em>, which is the base of its functionality.</p>'},
+ {t:'Public, private, hybrid',d:'<p><em>Public</em>: available via the Internet to anyone willing to pay. <em>Private</em>: run by a company for its own use. <em>Hybrid</em>: both public and private components.</p>'},
+ {t:'SaaS, PaaS, IaaS',d:'<p><em>Software as a Service</em>: applications via the Internet (a word processor). <em>Platform as a Service</em>: a software stack ready for apps (a database server). <em>Infrastructure as a Service</em>: servers or storage (storage for backups).</p>'},
+ {t:'Inside a cloud',d:'<p>Internet traffic passes a <em>firewall</em> for security, then <em>load balancers</em> spread it across multiple application servers.</p>'},
+ {t:'What it is made of',d:'<p>Cloud environments are composed of <em>traditional OSes, plus VMMs, plus cloud management tools</em>.</p>'}]});
+
+add({sec:'Computing Environments',title:'Real-Time Embedded Systems',slides:'Slide 56',
+svg:G(1,R(40,40,130,70,'car ECU','k4','smi')+R(190,40,130,70,'microwave','k4','smi')+R(340,40,130,70,'pacemaker','k4','smi')+R(490,40,130,70,'router','k4','smi')+T(400,130,'the most common computers','sm'),'1')+
+ G(2,R(640,40,130,100,'','k6')+T(705,58,'OS options','cap')+T(705,98,'none · limited\nreal-time OS','sm'),'2')+
+ G(3,W('M60 300 L760 300')+[0,1,2].map(i=>`<line class="ln r d" x1="${260+i*200}" y1="180" x2="${260+i*200}" y2="320"/>`+T(260+i*200,335,'deadline','sm badt')).join('')+[0,1,2].map(i=>`<rect class="bx k3" x="${80+i*200}" y="260" width="140" height="34" rx="4"/>`+T(150+i*200,277,'sense → compute','sm')).join('')+T(60,210,'fixed time constraints','cap','start'),'3')+
+ G(4,`<rect class="fillacc" x="60" y="230" width="4" height="80"><animate attributeName="x" values="60;760" dur="6s" repeatCount="indefinite"/></rect>`+CHECK(240,370)+CHECK(440,370)+R(560,355,200,40,'late result = failure','k5','smi'),'4'),
+steps:[{t:'Everywhere',d:'<p><em>Real-time embedded systems</em> are the most prevalent form of computer, and their use is expanding.</p>'},
+ {t:'Varied OS support',d:'<p>They vary considerably: special-purpose, limited-purpose OSes or real-time OSes. Some perform their tasks <em>without any OS</em>.</p>'},
+ {t:'Fixed time constraints',d:'<p>A <em>real-time OS</em> has well-defined, <em>fixed time constraints</em>. Processing must be finished within each constraint.</p>'},
+ {t:'Correct only if on time',d:'<p>Operation is <em>correct only if the constraints are met</em>. A right answer delivered after the deadline counts as a failure.</p>'}]});
+
+add({sec:'Computing Environments',title:'Open-Source Operating Systems',slides:'Slide 57',
+svg:G(1,R(40,40,320,140,'','k3')+T(200,58,'source code','cap')+T(200,110,'int main(void) {\n  schedule();\n}','mono')+R(440,40,320,140,'','k4')+T(600,58,'binary only (closed source)','cap')+T(600,110,'01001101 11010010\n10100111 00101101','mono'),'1')+
+ G(2,R(40,200,320,70,'','k5')+T(200,218,'counter to copy protection / DRM','cap')+T(200,246,'source is shared, not locked','sm'),'2')+
+ G(3,R(440,200,320,70,'','k2')+T(600,218,'FSF · GNU GPL','cap')+T(600,246,'"copyleft": changes stay open','sm'),'3')+
+ G(4,R(40,295,320,115,'','k1')+T(200,313,'examples','cap')+T(200,355,'GNU/Linux\nBSD UNIX (core of Mac OS X)\nand many more','smi'),'4')+
+ G(5,R(440,295,320,115,'','k6')+T(600,313,'explore them safely','cap')+R(460,340,280,26,'guest OS','k3','sm',3)+R(460,370,280,26,'VMware Player / VirtualBox','k6','sm',3),'5'),
+steps:[{t:'Source vs binary',d:'<p>Open-source operating systems are <em>made available in source-code format</em> rather than just as closed-source binaries.</p>'},
+ {t:'Against DRM',d:'<p>This runs counter to the <em>copy protection and Digital Rights Management (DRM)</em> movement.</p>'},
+ {t:'FSF and the GPL',d:'<p>The movement was started by the <em>Free Software Foundation (FSF)</em>, whose "copyleft" <em>GNU General Public License (GPL)</em> requires modified versions to stay open.</p>'},
+ {t:'Examples',d:'<p><em>GNU/Linux</em> and <em>BSD UNIX</em> (including the core of Mac OS X), and many more.</p>'},
+ {t:'Try them in a VM',d:'<p>Use a VMM like <em>VMware Player</em> (free on Windows) or <em>VirtualBox</em> (open source and free on many platforms) to run guest operating systems for exploration.</p>'}]});
+
+add({sec:'Computing Environments',title:'End of Chapter 1',slides:'Slide 58',dim:false,
+svg:G(1,T(400,70,'End of Chapter 1','hero'))+
+ G(2,[['hardware','k4'],['operating system','k1'],['applications','k3'],['users','k6']].reverse().map(([s,c],i)=>R(200+i*0,120+i*60,400,48,s,c,'lb')).join(''))+
+ G(3,[['processes','k3'],['memory','k3'],['storage','k3'],['protection','k5']].map(([s,c],i)=>R(40,120+i*60,130,48,s,c,'smi')).join('')+
+   [['interrupts','k2'],['dual mode','k2'],['timer','k2'],['caching','k2']].map(([s,c],i)=>R(630,120+i*60,130,48,s,c,'smi')).join('')),
+steps:[{t:'Chapter complete',d:'<p>You have toured the whole of Chapter 1.</p>'},
+ {t:'The layer model again',d:'<p>Users, applications, the operating system and hardware. The OS is both a <em>resource allocator</em> and a <em>control program</em>.</p>'},
+ {t:'What to remember',d:'<p>Left: what the OS <em>manages</em> (processes, memory, storage, protection). Right: the hardware <em>mechanisms</em> it relies on (interrupts, dual-mode operation, the timer and caching). Chapter 2 continues with operating-system structures.</p>'}]});
+
+/* ---------- player ---------- */
+const $=id=>document.getElementById(id);
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+let si=0,st=1,playing=false,timer=null;
+
+function buildIndex(){
+  let html='',sec='',opt='';
+  S.forEach((s,i)=>{
+    if(s.sec!==sec){ if(sec) html+='</ol>'; sec=s.sec; html+=`<div class="sec">${sec}</div><ol>`; opt+=`${opt?'</optgroup>':''}<optgroup label="${sec}">`; }
+    html+=`<li><button data-i="${i}"><span class="n">${String(i+1).padStart(2,'0')}</span><span>${s.title}</span></button></li>`;
+    opt+=`<option value="${i}">${i+1}. ${s.title}</option>`;
+  });
+  $('index').innerHTML=html+'</ol>';
+  $('pick').innerHTML=opt+'</optgroup>';
+  $('index').addEventListener('click',e=>{const b=e.target.closest('button');if(b)go(+b.dataset.i,1)});
+  $('pick').addEventListener('change',e=>go(+e.target.value,1));
+}
+
+function render(){
+  const sc=S[si],n=sc.steps.length,step=sc.steps[st-1];
+  $('eyebrow').textContent=sc.sec; $('title').textContent=sc.title;
+  $('src').textContent=`${sc.slides} · scene ${si+1} of ${S.length}`;
+  $('stage').innerHTML=`<svg viewBox="0 0 800 440" xmlns="http://www.w3.org/2000/svg" aria-label="${sc.title}, step ${st}: ${step.t}">${DEFS}${sc.svg}</svg>`;
+  const lastAll = st===n && n>1;
+  $('stage').querySelectorAll('[data-s]').forEach(el=>{
+    const s=+el.dataset.s, h=(el.dataset.h||'').split(',').filter(Boolean).map(Number);
+    if(s>st || (el.dataset.e && st>=+el.dataset.e)) el.classList.add('hid');
+    else if(s===st) el.classList.add('new');
+    else if(sc.dim!==false && s>0 && !h.includes(st) && !lastAll) el.classList.add('old');
+    if(h.includes(st)) el.classList.add('hl');
+  });
+  if(reduce){const svg=$('stage').querySelector('svg'); svg.pauseAnimations&&svg.pauseAnimations();}
+  $('stepk').textContent=`Component ${st} of ${n}`;
+  $('steph').textContent=step.t; $('stepd').innerHTML=step.d;
+  $('steps').innerHTML=sc.steps.map((s,i)=>`<li><button data-k="${i+1}" class="${i+1<st?'done':''}"${i+1===st?' aria-current="true"':''}><span class="n">${i+1}</span><span>${s.t}</span></button></li>`).join('');
+  $('dots').innerHTML=sc.steps.map((_,i)=>`<i class="${i+1<st?'on':i+1===st?'cur':''}"></i>`).join('');
+  document.querySelectorAll('.rail button').forEach(b=>b.setAttribute('aria-current',+b.dataset.i===si?'true':'false'));
+  $('pick').value=si;
+  $('prog').style.width=((si+(st/n))/S.length*100)+'%';
+  $('prev').disabled = si===0 && st===1; $('prevS').disabled=si===0;
+  $('next').disabled = si===S.length-1 && st===n; $('nextS').disabled=si===S.length-1;
+  try{history.replaceState(null,'','#s'+(si+1))}catch(e){}
+  try{localStorage.setItem('ch1pos',JSON.stringify([si,st]))}catch(e){}
+}
+function go(i,s){si=Math.max(0,Math.min(S.length-1,i));st=Math.max(1,Math.min(S[si].steps.length,s));render();
+  const cur=document.querySelector('.rail button[aria-current="true"]'); if(cur) cur.scrollIntoView({block:'nearest'});}
+function next(){const n=S[si].steps.length; if(st<n) go(si,st+1); else if(si<S.length-1) go(si+1,1); else stop();}
+function prev(){ if(st>1) go(si,st-1); else if(si>0) go(si-1,S[si-1].steps.length);}
+function play(){playing=true;$('play').textContent='❚❚ Pause';clearInterval(timer);timer=setInterval(next,6500);}
+function stop(){playing=false;$('play').textContent='▶ Play';clearInterval(timer);}
+function toggle(){playing?stop():play();}
+
+$('next').onclick=()=>{next(); if(playing) play();};
+$('prev').onclick=()=>{prev(); if(playing) play();};
+$('nextS').onclick=()=>go(si+1,1);
+$('prevS').onclick=()=>go(si-1,1);
+$('play').onclick=toggle;
+$('steps').addEventListener('click',e=>{const b=e.target.closest('button');if(b)go(si,+b.dataset.k)});
+document.addEventListener('keydown',e=>{
+  if(e.target.tagName==='SELECT') return;
+  if(e.key==='ArrowRight'){e.preventDefault(); e.shiftKey?go(si+1,1):next();}
+  else if(e.key==='ArrowLeft'){e.preventDefault(); e.shiftKey?go(si-1,1):prev();}
+  else if(e.key===' '&&e.target.tagName!=='BUTTON'){e.preventDefault();toggle();}
+});
+
+buildIndex();
+let start=[0,1];
+const m=/^#s(\d+)$/.exec(location.hash||'');
+if(m) start=[+m[1]-1,1];
+else { try{const p=JSON.parse(localStorage.getItem('ch1pos')||'null'); if(Array.isArray(p)) start=p;}catch(e){} }
+go(start[0]||0,start[1]||1);
+</script>
