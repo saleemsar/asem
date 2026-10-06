@@ -43,7 +43,8 @@ class Net:
     """Faces are rectangles (cm, net-local). Edges shared by two faces or by a
     face and a tab become fold lines; every other edge is a cut line."""
 
-    def __init__(self):
+    def __init__(self, code=None):
+        self.code = code
         self.faces = []  # (x, y, w, h, fill, deco)
         self.tabs = []   # (face_index, side, depth)
 
@@ -136,7 +137,7 @@ class Net:
             my = sum(q[1] for q in pts) / 4
             c.setFillColor(MGRAY)
             c.setFont("Helvetica", 4.5)
-            c.drawCentredString(mx, my - 1.5, "glue")
+            c.drawCentredString(mx, my - 1.5, self.code or "glue")
 
         # faces: fills + artwork
         for x, y, w, h, fill, deco in self.faces:
