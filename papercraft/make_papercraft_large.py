@@ -16,8 +16,62 @@ from make_papercraft import (
     Net, BLUE, BLUE_D, YELLOW, BLACK, DGRAY, MGRAY, TAB,
     tower_front, tower_side, tower_back, speaker_front, speaker_front_rgb,
     speaker_back, monitor_front, keyboard_top, mouse_top, blue_panel,
-    black_panel, label, page_header,
+    black_panel, label, TAB as _TAB,
 )
+import arabic_reshaper
+from bidi.algorithm import get_display
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+
+pdfmetrics.registerFont(TTFont("Ar", "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"))
+pdfmetrics.registerFont(TTFont("ArB", "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"))
+
+
+def A(t):
+    """Shape + reorder Arabic text so the PDF shows it right-to-left."""
+    return get_display(arabic_reshaper.reshape(t), base_dir="R")
+
+
+def label_ar(c, x, y, txt, size=6, color=None, bold=False):
+    c.setFillColor(color if color is not None else MGRAY)
+    c.setFont("ArB" if bold else "Ar", size)
+    c.drawCentredString(x, y, A(txt))
+
+
+def page_header(c, pw, ph, title, info):
+    """Arabic page header (right aligned) + legend and 5 cm scale ruler."""
+    c.setFillColor(BLUE_D)
+    c.setFont("ArB", 12.5)
+    c.drawRightString(pw - 1.0 * cm, ph - 1.0 * cm, A(title))
+    c.setFillColor(HexColor("#444444"))
+    c.setFont("Ar", 7.5)
+    yy = ph - 1.5 * cm
+    for line in info:
+        c.drawRightString(pw - 1.0 * cm, yy, A(line))
+        yy -= 0.36 * cm
+    y0 = 0.55 * cm
+    c.setFont("Ar", 6.5)
+    c.setStrokeColor(black)
+    c.setLineWidth(0.8)
+    c.setDash()
+    c.line(pw - 1.8 * cm, y0, pw - 1.0 * cm, y0)
+    c.setFillColor(black)
+    c.drawRightString(pw - 1.95 * cm, y0 - 2, A("قص"))
+    c.setDash(3, 2)
+    c.setStrokeColor(HexColor("#555555"))
+    c.line(pw - 3.3 * cm, y0, pw - 2.5 * cm, y0)
+    c.setDash()
+    c.drawRightString(pw - 3.45 * cm, y0 - 2, A("طي (اضغط الخط أولاً)"))
+    c.setFillColor(_TAB)
+    c.rect(pw - 6.6 * cm, y0 - 0.12 * cm, 0.5 * cm, 0.25 * cm, fill=1, stroke=1)
+    c.setFillColor(black)
+    c.drawRightString(pw - 6.75 * cm, y0 - 2, A("لسان لصق"))
+    rx = 1.0 * cm
+    c.setLineWidth(0.6)
+    c.line(rx, y0, rx + 5 * cm, y0)
+    for i in range(6):
+        c.line(rx + i * cm, y0, rx + i * cm, y0 + 0.18 * cm)
+    c.drawString(rx + 5.15 * cm, y0 - 2, A("= 5 سم (تحقق من المقاس)"))
 
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "pdf_large")
 
@@ -44,8 +98,10 @@ FOOTPRINTS = {
 TILE_COLS = [17.0, 17.0, 16.0]
 TILE_ROWS = [25.0, 25.0]
 
-PRINT_NOTE = ("Print at 100 % / 'Actual size' (NOT 'Fit to page'). "
-              "Best on 200-250 g/m2 card; or glue the print onto thin card (cereal box).")
+PRINT_NOTE = ("اطبع بحجم 100% (الحجم الفعلي) وليس «ملاءمة للصفحة». "
+              "الأفضل ورق مقوى 200-250 غ/م2، أو الصق الطبعة على كرتون رقيق.")
+FP_AR = {"Speaker L": "سماعة يسار", "Monitor foot": "قاعدة الشاشة", "Speaker R": "سماعة يمين",
+         "Tower": "الكيس", "Keyboard": "لوحة المفاتيح", "Mouse": "الماوس"}
 TABD = 1.0  # standard glue tab depth
 
 
@@ -63,8 +119,8 @@ def piece_title(c, net, ox, oy, text):
     x0, y0, x1, y1 = net.bbox()
     net.draw(c, ox, oy)
     c.setFillColor(BLUE_D)
-    c.setFont("Helvetica-Bold", 8)
-    c.drawString(ox * cm, (oy + (y1 - y0) + 0.25) * cm, text)
+    c.setFont("ArB", 8)
+    c.drawString(ox * cm, (oy + (y1 - y0) + 0.25) * cm, A(text))
 
 
 def size(net):
@@ -125,8 +181,8 @@ def monitor_back_l(c, x, y, w, h):
     c.setLineWidth(0.8)
     c.rect(x + (w - nw) / 2, y + gy * cm, nw, gh * cm, fill=0, stroke=1)
     c.setDash()
-    label(c, x + w / 2, y + (gy + gh / 2) * cm, "S1 neck", 7, MGRAY, "Helvetica")
-    label(c, x + w / 2, y + (gy + gh / 2 - 0.5) * cm, "glue here", 7, MGRAY, "Helvetica")
+    label_ar(c, x + w / 2, y + (gy + gh / 2) * cm, "الرقبة S1", 7)
+    label_ar(c, x + w / 2, y + (gy + gh / 2 - 0.5) * cm, "الصق هنا", 7)
     c.setFillColor(HexColor("#333333"))
     for i in range(14):
         c.rect(x + w * 0.22 + i * 0.95 * cm, y + h * 0.78, 0.5 * cm, 0.12 * cm, fill=1, stroke=0)
@@ -141,8 +197,8 @@ def foot_top(c, x, y, w, h):
     c.setDash(3, 3)
     c.rect(x + (w - nw) / 2, y + h * 0.55, nw, nd, fill=0, stroke=1)
     c.setDash()
-    label(c, x + w / 2, y + h * 0.55 - 0.45 * cm, "neck S1 here (back)", 6, MGRAY, "Helvetica")
-    label(c, x + w / 2, y + 0.4 * cm, "FRONT", 6, MGRAY, "Helvetica")
+    label_ar(c, x + w / 2, y + h * 0.55 - 0.45 * cm, "الرقبة S1 هنا (الخلف)", 6)
+    label_ar(c, x + w / 2, y + 0.4 * cm, "الأمام", 6)
 
 
 def plain_dark(c, x, y, w, h):
@@ -155,7 +211,7 @@ def code_mark(text):
     def f(c, x, y, w, h):
         plain_dark(c, x, y, w, h)
         label(c, x + w / 2, y + h / 2, text, 9, HexColor("#5568c8"))
-        label(c, x + w / 2, y + h / 2 - 0.45 * cm, "(underside)", 6, HexColor("#5568c8"), "Helvetica")
+        label_ar(c, x + w / 2, y + h / 2 - 0.45 * cm, "(الجهة السفلية)", 6, HexColor("#5568c8"))
     return f
 
 
@@ -171,81 +227,83 @@ def code_mark_black(text):
 def p_instructions(c):
     pw, ph = A4
     c.setPageSize(A4)
+    R = pw - 1.2 * cm
     c.setFillColor(YELLOW)
     c.rect(0, ph - 3.0 * cm, pw, 3.0 * cm, fill=1, stroke=0)
     c.setFillColor(BLUE_D)
-    c.setFont("Helvetica-Bold", 20)
-    c.drawString(1.2 * cm, ph - 1.6 * cm, "Desktop Computer Model - LARGE (50 x 50 cm)")
+    c.setFont("ArB", 19)
+    c.drawRightString(R, ph - 1.6 * cm, A("مجسم كمبيوتر مكتبي - الحجم الكبير (50 × 50 سم)"))
     c.setFillColor(BLACK)
-    c.setFont("Helvetica", 9.5)
-    c.drawString(1.2 * cm, ph - 2.4 * cm, "Closed 3D boxes, cut - fold - glue.  Every glue tab shows the piece code.")
+    c.setFont("Ar", 9.5)
+    c.drawRightString(R, ph - 2.4 * cm, A("صناديق ثلاثية الأبعاد مغلقة: قص - اطوِ - الصق. كل لسان لصق مكتوب عليه رمز القطعة."))
 
     y = ph - 3.8 * cm
 
     def head(t):
         nonlocal y
-        c.setFont("Helvetica-Bold", 11)
+        c.setFont("ArB", 11)
         c.setFillColor(BLUE_D)
-        c.drawString(1.2 * cm, y, t)
-        y -= 0.45 * cm
-        c.setFont("Helvetica", 8.3)
+        c.drawRightString(R, y, A(t))
+        y -= 0.48 * cm
+        c.setFont("Ar", 8.2)
         c.setFillColor(BLACK)
 
-    def line(t, x=1.5):
+    def line(t, indent=0.3):
         nonlocal y
-        c.drawString(x * cm, y, t)
-        y -= 0.38 * cm
+        c.drawRightString(R - indent * cm, y, A(t))
+        y -= 0.4 * cm
 
-    head("You need")
-    line(u"•  Colour printer, 200-250 g/m2 card (or normal paper glued onto thin card)")
-    line(u"•  Scissors / craft knife, metal ruler, empty pen to score folds, glue stick + white PVA glue")
-    line(u"•  Base: cardboard or foam board 50 x 50 cm (5-10 mm thick)")
+    head("ماذا تحتاج")
+    line("•  طابعة ملونة، ورق مقوى 200-250 غ/م2 (أو ورق عادي ملصوق على كرتون رقيق)")
+    line("•  مقص أو مشرط، مسطرة معدنية، قلم فارغ لتعليم خطوط الطي، صمغ أصابع + غراء أبيض")
+    line("•  القاعدة: كرتون أو لوح فوم مقاس 50 × 50 سم (سماكة 5-10 مم)")
     y -= 0.15 * cm
 
-    head("Pieces  (code - piece - file)")
+    head("القطع  (الرمز - القطعة - الملف)")
     rows = [
-        ("A1..C2", "Yellow base tiles (6)", "01_base"),
-        ("E1..E8", "Black base edge strips", "01_base"),
-        ("T1..T6", "PC tower: sides, front, back, top, bottom   9 x 16 x 20", "02_pc_tower"),
-        ("M1, M2", "Monitor screen + back with top wall   24 x 15 x 1.2", "03_monitor"),
-        ("M3, M4, M5", "Monitor bottom wall + 2 side walls", "07_small_parts"),
-        ("S1, S2", "Stand neck + foot top", "04_monitor_stand"),
-        ("S3", "Foot bottom", "07_small_parts"),
-        ("L1, R1", "Speaker walls (left, right)   6 x 7 x 11", "05_speakers"),
-        ("L2,L3,R2,R3", "Speaker tops + bottoms", "05_speakers"),
-        ("K1 / K2", "Keyboard top+walls / bottom   22 x 7.5 x 1", "06_keyboard  /  07_small_parts"),
-        ("U1 / U2", "Mouse top+walls / bottom   4.5 x 8 x 1.3", "07_small_parts"),
-        ("X1, X2", "OPTIONAL RGB speaker fronts", "08_optional"),
+        ("A1..C2", "بلاطات القاعدة الصفراء (6 قطع)", "01_base"),
+        ("E1..E8", "أشرطة حواف القاعدة السوداء", "01_base"),
+        ("T1..T6", "الكيس: جانبان، أمام، خلف، أعلى، أسفل   9 × 16 × 20", "02_pc_tower"),
+        ("M1, M2", "واجهة الشاشة + ظهر الشاشة مع الجدار العلوي   24 × 15 × 1.2", "03_monitor"),
+        ("M3, M4, M5", "الجدار السفلي للشاشة + الجداران الجانبيان", "07_small_parts"),
+        ("S1, S2", "رقبة الحامل + أعلى قاعدة الحامل", "04_monitor_stand"),
+        ("S3", "أسفل قاعدة الحامل", "07_small_parts"),
+        ("L1, R1", "جدران السماعات (يسار، يمين)   6 × 7 × 11", "05_speakers"),
+        ("L2, L3, R2, R3", "الأغطية العلوية والسفلية للسماعات", "05_speakers"),
+        ("K1 / K2", "لوحة المفاتيح: الأعلى مع الجدران / الأسفل   22 × 7.5 × 1", "06_keyboard / 07_small_parts"),
+        ("U1 / U2", "الماوس: الأعلى مع الجدران / الأسفل   4.5 × 8 × 1.3", "07_small_parts"),
+        ("X1, X2", "اختياري: واجهات سماعات بإضاءة RGB", "08_optional"),
     ]
     for code, name, f in rows:
-        c.setFont("Helvetica-Bold", 8.3)
-        c.drawString(1.5 * cm, y, code)
-        c.setFont("Helvetica", 8.3)
-        c.drawString(3.8 * cm, y, name)
-        c.drawRightString(pw - 1.2 * cm, y, f)
-        y -= 0.38 * cm
+        c.setFont("Helvetica-Bold", 8.2)
+        c.drawRightString(R - 0.3 * cm, y, code)
+        c.setFont("Ar", 8.2)
+        c.drawRightString(R - 3.0 * cm, y, A(name))
+        c.setFont("Helvetica", 7.5)
+        c.drawString(1.2 * cm, y, f)
+        y -= 0.4 * cm
     y -= 0.15 * cm
 
-    head("How to build")
+    head("طريقة التركيب")
     for t in [
-        "1. Print at 100 %. Check the 5 cm ruler at the bottom of each page. Cut SOLID lines, score + fold DASHED lines.",
-        "2. Grey tabs always go INSIDE. Fold every tab 90 deg first, put glue on the tab, then press the next panel on it.",
-        "3. TOWER: fold all tabs of T1 + T2 (sides). Glue T3 (front) and T4 (back) between the sides, then T5 top, T6 bottom.",
-        "4. SPEAKERS: close the wall strip L1 with its side tab, then glue L2 on top and L3 underneath (same for R).",
-        "5. MONITOR: on M2 fold the top wall + its tabs. Glue M3 (bottom wall) and M4, M5 (side walls) to the back,",
-        "   then glue the screen M1 on top of all the outer tabs. Keep it flat under a book while it dries.",
-        "6. STAND: close neck S1, close foot S2 with bottom S3. Glue the neck into the foot, then the monitor onto the",
-        "   neck's front face (dashed box on the monitor back).",
-        "7. KEYBOARD / MOUSE: fold walls down, glue corner tabs, then glue K2 / U2 underneath.",
-        "8. BASE: glue tiles on the board (A = left, C = right, row 1 = front). Wrap the black strips around the edges.",
-        "9. Glue every part on its dotted outline. Big boxes stay firmer with crumpled paper or a card cross inside.",
+        "1. اطبع بحجم 100%. تحقق من مسطرة 5 سم أسفل كل صفحة. قص على الخطوط المتصلة، واضغط ثم اطوِ الخطوط المتقطعة.",
+        "2. الألسنة الرمادية دائماً إلى الداخل. اطوِ كل لسان 90 درجة أولاً، ضع الصمغ على اللسان ثم اضغط القطعة التالية عليه.",
+        "3. الكيس: اطوِ كل ألسنة T1 و T2 (الجانبين). الصق T3 (الأمام) و T4 (الخلف) بين الجانبين، ثم T5 الأعلى و T6 الأسفل.",
+        "4. السماعات: اصنع أنبوباً من الجدران L1 باستخدام اللسان الجانبي، ثم الصق L2 في الأعلى و L3 في الأسفل (ونفس الشيء لـ R).",
+        "5. الشاشة: في القطعة M2 اطوِ الجدار العلوي وألسنته. الصق M3 (الجدار السفلي) و M4 و M5 (الجدارين الجانبيين) بالظهر،",
+        "    ثم الصق الواجهة M1 فوق كل الألسنة الخارجية. ضع كتاباً فوقها حتى يجف الغراء.",
+        "6. الحامل: أغلق الرقبة S1، وأغلق القاعدة S2 بالقطعة S3. الصق الرقبة في القاعدة، ثم الصق الشاشة على",
+        "    الوجه الأمامي للرقبة (المربع المتقطع على ظهر الشاشة).",
+        "7. لوحة المفاتيح والماوس: اطوِ الجدران للأسفل، الصق ألسنة الزوايا، ثم الصق K2 و U2 من الأسفل.",
+        "8. القاعدة: الصق البلاطات على اللوح (A يسار، C يمين، الصف 1 = الأمام). لُف الأشرطة السوداء حول الحواف.",
+        "9. الصق كل قطعة على حدودها المنقطة. الصناديق الكبيرة تبقى أقوى بوضع ورق مجعد أو كرتون متقاطع داخلها.",
     ]:
-        line(t, 1.3)
+        line(t, 0.1)
     y -= 0.2 * cm
 
-    head("Layout on the 50 x 50 cm base (top view)")
+    head("توزيع القطع على القاعدة 50 × 50 سم (منظر من الأعلى)")
     sc = 0.17
-    bx0, by0 = 1.5 * cm, y - BASE["D"] * sc * cm - 0.1 * cm
+    bx0, by0 = pw - 1.5 * cm - BASE["W"] * sc * cm, y - BASE["D"] * sc * cm - 0.1 * cm
     c.setFillColor(YELLOW)
     c.setStrokeColor(black)
     c.rect(bx0, by0, BASE["W"] * sc * cm, BASE["D"] * sc * cm, fill=1, stroke=1)
@@ -258,23 +316,23 @@ def p_instructions(c):
     c.line(bx0, by0 + TILE_ROWS[0] * sc * cm, bx0 + BASE["W"] * sc * cm, by0 + TILE_ROWS[0] * sc * cm)
     c.setDash()
     for name, (fx, fy, fw, fd) in FOOTPRINTS.items():
-        c.setFillColor(BLACK if "Monitor" in name else BLUE)
+        c.setFillColor(BLACK if name == "Monitor foot" else BLUE)
         c.rect(bx0 + fx * sc * cm, by0 + fy * sc * cm, fw * sc * cm, fd * sc * cm, fill=1, stroke=0)
-    # screen outline
     c.setFillColor(DGRAY)
     c.rect(bx0 + 10 * sc * cm, by0 + 26.3 * sc * cm, MON["W"] * sc * cm, MON["T"] * sc * cm, fill=1, stroke=0)
     c.setFillColor(BLACK)
-    c.setFont("Helvetica", 7)
-    tx = bx0 + BASE["W"] * sc * cm + 0.6 * cm
+    c.setFont("Ar", 7.5)
+    tx = bx0 - 0.6 * cm
     ty = by0 + BASE["D"] * sc * cm - 0.3 * cm
-    for t in ["Tiles: A B C = left to right,", "row 1 = front, row 2 = back.", "",
-              "Back right: tower", "Middle: monitor on stand", "Left + right: speakers",
-              "Front: keyboard + mouse", "", "Front edge = bottom of the drawing."]:
-        c.drawString(tx, ty, t)
-        ty -= 0.35 * cm
-    c.setFont("Helvetica", 6.5)
+    for t in ["البلاطات: A B C = من اليسار إلى اليمين،", "الصف 1 = الأمام، الصف 2 = الخلف.", "",
+              "الخلف يميناً: الكيس", "في الوسط: الشاشة على الحامل", "يساراً ويميناً: السماعات",
+              "في الأمام: لوحة المفاتيح والماوس", "", "الحافة الأمامية = أسفل الرسم."]:
+        if t:
+            c.drawRightString(tx, ty, A(t))
+        ty -= 0.38 * cm
+    c.setFont("Ar", 6.5)
     c.setFillColor(HexColor("#666666"))
-    c.drawString(1.2 * cm, 0.6 * cm, PRINT_NOTE)
+    c.drawRightString(R, 0.6 * cm, A(PRINT_NOTE))
 
 
 def p_base_tile(c, col, row):
@@ -299,8 +357,8 @@ def p_base_tile(c, col, row):
         c.rect(X, Y, fw * cm, fd * cm, fill=0, stroke=1)
         c.setDash()
         c.setFillColor(HexColor("#b39200"))
-        c.setFont("Helvetica", 8)
-        c.drawCentredString(X + fw * cm / 2, Y + fd * cm / 2, name)
+        c.setFont("Ar", 8)
+        c.drawCentredString(X + fw * cm / 2, Y + fd * cm / 2, A(FP_AR[name]))
     # small tile code in the corner (gets covered / is very light)
     c.setFillColor(HexColor("#e9c400"))
     c.setFont("Helvetica-Bold", 10)
@@ -309,30 +367,31 @@ def p_base_tile(c, col, row):
     c.setStrokeColor(black)
     c.setLineWidth(0.8)
     c.rect(ox * cm, oy * cm, W * cm, D * cm, fill=0, stroke=1)
-    c.setFillColor(BLUE_D)
-    c.setFont("Helvetica-Bold", 12)
-    c.drawString(1.0 * cm, ph - 1.0 * cm, "01  BASE TILE %s  (%g x %g cm)" % (code, W, D))
     nb = []
     if col > 0:
-        nb.append("left edge -> %s%d" % ("ABC"[col - 1], row + 1))
+        nb.append("الحافة اليسرى: %s%d" % ("ABC"[col - 1], row + 1))
     if col < 2:
-        nb.append("right edge -> %s%d" % ("ABC"[col + 1], row + 1))
-    nb.append("top edge -> %s2" % "ABC"[col] if row == 0 else "bottom edge -> %s1" % "ABC"[col])
-    c.setFont("Helvetica", 7.5)
+        nb.append("الحافة اليمنى: %s%d" % ("ABC"[col + 1], row + 1))
+    nb.append("الحافة العليا: %s2" % "ABC"[col] if row == 0 else "الحافة السفلى: %s1" % "ABC"[col])
+    c.setFillColor(BLUE_D)
+    c.setFont("ArB", 12)
+    c.drawRightString(pw - 1.0 * cm, ph - 1.0 * cm, A("01  بلاطة القاعدة رقم %s - المقاس %g × %g سم" % (code, W, D)))
+    c.setFont("Ar", 7.5)
     c.setFillColor(HexColor("#444444"))
-    c.drawString(1.0 * cm, ph - 1.45 * cm, "Cut on the black line, glue on the 50 x 50 board. Joins: " + ",  ".join(nb)
-                 + ".  Bottom of page = front.")
-    c.setFont("Helvetica", 6.5)
-    c.drawString(1.0 * cm, 0.6 * cm, PRINT_NOTE)
+    c.drawRightString(pw - 1.0 * cm, ph - 1.45 * cm,
+                      A("قص على الخط الأسود والصقها على اللوح 50 × 50. تتصل بـ:  " + "،  ".join(nb)))
+    c.drawRightString(pw - 1.0 * cm, ph - 1.85 * cm, A("أسفل الصفحة = الأمام."))
+    c.setFont("Ar", 6.5)
+    c.drawRightString(pw - 1.0 * cm, 0.6 * cm, A(PRINT_NOTE))
 
 
 def p_edge_strips(c):
     size_ = landscape(A4)
     c.setPageSize(size_)
     pw, ph = size_
-    page_header(c, pw, ph, "01  BASE EDGE STRIPS  E1-E8",
-                ["8 strips x 25 cm = 2 per edge (4 edges x 50 cm). Score the dashed line, wrap the strip around the",
-                 "board edge: the narrow part goes under the board. Trim if your board is thinner."])
+    page_header(c, pw, ph, "01  أشرطة حواف القاعدة  E1-E8",
+                ["8 أشرطة × 25 سم = شريطان لكل حافة (4 حواف × 50 سم). اضغط الخط المتقطع ولُف الشريط حول حافة اللوح:",
+                 "الجزء الضيق يذهب تحت اللوح. قص الزائد إذا كان لوحك أرق."])
     L, Wd = 25.0, 1.8
     for i in range(8):
         x, y = 1.0 + (i % 1) * 0, 2.3 + i * 2.2
@@ -357,14 +416,14 @@ def p_tower_sides(c, which):
     W, D, H = TOWER["W"], TOWER["D"], TOWER["H"]
     code = "T1" if which == "R" else "T2"
     n = panel(code, D, H, BLUE, tower_side, tabs="LRTB")
-    side = "RIGHT" if which == "R" else "LEFT"
-    page_header(c, pw, ph, "02  PC TOWER - %s SIDE  (%s)" % (side, code),
-                ["%g x %g cm. Fold all 4 tabs inward. %s" % (D, H,
-                 "LEFT edge (on paper) meets the FRONT T3, right edge meets the BACK T4." if which == "R" else
-                 "LEFT edge (on paper) meets the BACK T4, right edge meets the FRONT T3."),
-                 "Top edge of the page = top of the tower.", PRINT_NOTE])
+    side = "الأيمن" if which == "R" else "الأيسر"
+    page_header(c, pw, ph, "02  الكيس - الجانب %s  (%s)" % (side, code),
+                ["%g × %g سم. اطوِ الألسنة الأربعة إلى الداخل." % (D, H),
+                 "الحافة اليسرى (على الورقة) تلتقي بالأمام T3، والحافة اليمنى بالخلف T4." if which == "R" else
+                 "الحافة اليسرى (على الورقة) تلتقي بالخلف T4، والحافة اليمنى بالأمام T3.",
+                 "أعلى الصفحة = أعلى الكيس.", PRINT_NOTE])
     w, h = size(n)
-    piece_title(c, n, (pw / cm - w) / 2, 2.0, code + "  tower %s side" % side.lower())
+    piece_title(c, n, (pw / cm - w) / 2, 2.0, code + "  الجانب " + side)
 
 
 def p_tower_front_back(c):
@@ -373,14 +432,14 @@ def p_tower_front_back(c):
     W, H = TOWER["W"], TOWER["H"]
     f = panel("T3", W, H, BLUE, scaled(tower_front, 6), tabs="TB")
     b = panel("T4", W, H, DGRAY, scaled(tower_back, 6), tabs="TB")
-    page_header(c, pw, ph, "02  PC TOWER - FRONT (T3) + BACK (T4)",
-                ["%g x %g cm each. Their top/bottom tabs go under the top T5 and bottom T6." % (W, H),
-                 "Glue them onto the side tabs of T1 and T2.", PRINT_NOTE])
+    page_header(c, pw, ph, "02  الكيس - الأمام (T3) + الخلف (T4)",
+                ["%g × %g سم لكل قطعة. ألسنتها العلوية والسفلية تذهب تحت الأعلى T5 والأسفل T6." % (W, H),
+                 "الصقها على الألسنة الجانبية للقطعتين T1 و T2.", PRINT_NOTE])
     w, h = size(f)
     gap = 0.8
     x0 = (pw / cm - 2 * w - gap) / 2
-    piece_title(c, f, x0, 2.0, "T3 front")
-    piece_title(c, b, x0 + w + gap, 2.0, "T4 back (ports)")
+    piece_title(c, f, x0, 2.0, "T3 الأمام")
+    piece_title(c, b, x0 + w + gap, 2.0, "T4 الخلف (المنافذ)")
 
 
 def p_tower_lids(c):
@@ -393,17 +452,17 @@ def p_tower_lids(c):
         c2.setFillColor(BLUE_D)
         for i in range(8):
             c2.rect(x + w * 0.2, y + h * 0.55 + i * 0.35 * cm, w * 0.6, 0.12 * cm, fill=1, stroke=0)
-        label(c2, x + w / 2, y + 0.4 * cm, "front edge", 6, HexColor("#8fa2ff"), "Helvetica")
+        label_ar(c2, x + w / 2, y + 0.4 * cm, "الحافة الأمامية", 6, HexColor("#8fa2ff"))
 
     t = panel("T5", W, D, BLUE, top_art)
     b = panel("T6", W, D, BLUE_D, code_mark("T6"))
-    page_header(c, pw, ph, "02  PC TOWER - TOP (T5) + BOTTOM (T6)",
-                ["%g x %g cm each. Glue last, onto the tabs of T1-T4." % (W, D),
-                 "Tip: before closing, put crumpled paper or a cardboard cross inside the tower.", PRINT_NOTE])
+    page_header(c, pw, ph, "02  الكيس - الأعلى (T5) + الأسفل (T6)",
+                ["%g × %g سم لكل قطعة. تُلصق في النهاية على ألسنة T1 إلى T4." % (W, D),
+                 "نصيحة: قبل الإغلاق ضع ورقاً مجعداً أو كرتوناً متقاطعاً داخل الكيس.", PRINT_NOTE])
     gap = 0.8
     x0 = (pw / cm - 2 * W - gap) / 2
-    piece_title(c, t, x0, 4.0, "T5 top")
-    piece_title(c, b, x0 + W + gap, 4.0, "T6 bottom")
+    piece_title(c, t, x0, 4.0, "T5 الأعلى")
+    piece_title(c, b, x0 + W + gap, 4.0, "T6 الأسفل")
 
 
 def p_monitor_front(c):
@@ -411,11 +470,11 @@ def p_monitor_front(c):
     c.setPageSize(sz)
     pw, ph = sz
     n = panel("M1", MON["W"], MON["H"], BLACK, scaled(monitor_front, 16))
-    page_header(c, pw, ph, "03  MONITOR - SCREEN  (M1)",
-                ["%g x %g cm. Glue LAST, onto the outer tabs of M2, M3, M4, M5." % (MON["W"], MON["H"]),
+    page_header(c, pw, ph, "03  الشاشة - الواجهة  (M1)",
+                ["%g × %g سم. تُلصق في النهاية على الألسنة الخارجية للقطع M2 و M3 و M4 و M5." % (MON["W"], MON["H"]),
                  PRINT_NOTE])
     w, h = size(n)
-    piece_title(c, n, (pw / cm - w) / 2, 1.6, "M1 screen")
+    piece_title(c, n, (pw / cm - w) / 2, 1.6, "M1 واجهة الشاشة")
 
 
 def p_monitor_back(c):
@@ -427,11 +486,11 @@ def p_monitor_back(c):
     n.face(0, 0, W, H, BLACK, monitor_back_l)
     tw = n.face(0, H, W, T, BLACK, black_panel)
     n.tab(tw, "L", 0.7), n.tab(tw, "R", 0.7), n.tab(tw, "T", 0.8)
-    page_header(c, pw, ph, "03  MONITOR - BACK + TOP WALL  (M2)",
-                ["Fold the top wall up 90 deg. Its end tabs glue inside the side walls M4/M5, its long tab under the screen M1.",
-                 "Bottom wall M3 and side walls M4, M5 are in 07_small_parts."])
+    page_header(c, pw, ph, "03  الشاشة - الظهر + الجدار العلوي  (M2)",
+                ["اطوِ الجدار العلوي 90 درجة. لسانا طرفيه يُلصقان داخل الجدارين M4 و M5، ولسانه الطويل تحت الواجهة M1.",
+                 "الجدار السفلي M3 والجداران الجانبيان M4 و M5 موجودة في الملف رقم 07."])
     w, h = size(n)
-    piece_title(c, n, (pw / cm - w) / 2, 1.3, "M2 monitor back")
+    piece_title(c, n, (pw / cm - w) / 2, 1.3, "M2 ظهر الشاشة")
 
 
 def p_stand(c):
@@ -443,14 +502,14 @@ def p_stand(c):
                      fills={k: BLACK for k in ["front", "right", "back", "left", "top", "bottom"]})
     neck.code = "S1"
     foot = closed_tray("S2", FOOT["W"], FOOT["D"], FOOT["T"], foot_top, BLACK, BLACK, black_panel)
-    page_header(c, pw, ph, "04  MONITOR STAND - NECK (S1) + FOOT (S2)",
-                ["Neck %g x %g x %g cm (closed box). Foot %g x %g x %g cm, closed with S3 (in 07_small_parts)."
+    page_header(c, pw, ph, "04  حامل الشاشة - الرقبة (S1) + القاعدة (S2)",
+                ["الرقبة %g × %g × %g سم (صندوق مغلق). القاعدة %g × %g × %g سم، وتُغلق بالقطعة S3 (في الملف رقم 07)."
                  % (NECK["W"], NECK["D"], NECK["H"], FOOT["W"], FOOT["D"], FOOT["T"]),
-                 "A wooden lolly stick or rolled card inside the neck makes it strong.", PRINT_NOTE])
+                 "عود خشبي أو كرتون ملفوف داخل الرقبة يجعلها قوية.", PRINT_NOTE])
     w1, h1 = size(neck)
     w2, h2 = size(foot)
-    piece_title(c, neck, (pw / cm - w1) / 2, 12.4, "S1 neck")
-    piece_title(c, foot, (pw / cm - w2) / 2, 1.6, "S2 foot (top + walls)")
+    piece_title(c, neck, (pw / cm - w1) / 2, 12.4, "S1 الرقبة")
+    piece_title(c, foot, (pw / cm - w2) / 2, 1.6, "S2 القاعدة (الأعلى + الجدران)")
 
 
 def p_speaker(c, side):
@@ -462,11 +521,12 @@ def p_speaker(c, side):
     n = walls_strip(code, W, D, H,
                     [scaled(speaker_front, 4), blue_panel, scaled(speaker_back, 4), blue_panel],
                     [BLUE] * 4)
-    page_header(c, pw, ph, "05  SPEAKER %s - WALLS  (%s)" % (side, code),
-                ["Front | right | back | left. Glue the end tab inside the front edge to make a tube,",
-                 "then glue top %s2 and bottom %s3 onto the small tabs." % (code[0], code[0]), PRINT_NOTE])
+    side_ar = "اليسرى" if side == "LEFT" else "اليمنى"
+    page_header(c, pw, ph, "05  السماعة %s - الجدران  (%s)" % (side_ar, code),
+                ["من اليسار على الورقة: أمام | يمين | خلف | يسار. الصق اللسان الطرفي داخل حافة الأمام لتكوين أنبوب،",
+                 "ثم الصق الغطاء العلوي %s2 والغطاء السفلي %s3 على الألسنة الصغيرة." % (code[0], code[0]), PRINT_NOTE])
     w, h = size(n)
-    piece_title(c, n, (pw / cm - w) / 2, 2.0, "%s speaker %s" % (code, side.lower()))
+    piece_title(c, n, (pw / cm - w) / 2, 2.0, "%s السماعة %s" % (code, side_ar))
 
 
 def p_speaker_lids(c):
@@ -476,12 +536,12 @@ def p_speaker_lids(c):
 
     def top_art(c2, x, y, w, h):
         blue_panel(c2, x, y, w, h)
-        label(c2, x + w / 2, y + 0.35 * cm, "front edge", 6, HexColor("#8fa2ff"), "Helvetica")
+        label_ar(c2, x + w / 2, y + 0.35 * cm, "الحافة الأمامية", 6, HexColor("#8fa2ff"))
 
-    page_header(c, pw, ph, "05  SPEAKER TOPS + BOTTOMS  (L2, L3, R2, R3)",
-                ["%g x %g cm each. Glue onto the tabs of the speaker tubes L1 / R1." % (W, D), PRINT_NOTE])
-    items = [("L2", "left top", BLUE, top_art), ("L3", "left bottom", BLUE_D, code_mark("L3")),
-             ("R2", "right top", BLUE, top_art), ("R3", "right bottom", BLUE_D, code_mark("R3"))]
+    page_header(c, pw, ph, "05  أغطية السماعات العلوية والسفلية  (L2, L3, R2, R3)",
+                ["%g × %g سم لكل قطعة. تُلصق على ألسنة أنابيب السماعات L1 و R1." % (W, D), PRINT_NOTE])
+    items = [("L2", "أعلى السماعة اليسرى", BLUE, top_art), ("L3", "أسفل السماعة اليسرى", BLUE_D, code_mark("L3")),
+             ("R2", "أعلى السماعة اليمنى", BLUE, top_art), ("R3", "أسفل السماعة اليمنى", BLUE_D, code_mark("R3"))]
     gap = 2.0
     x0 = (pw / cm - 2 * W - gap) / 2
     for i, (cd, nm, fill, art) in enumerate(items):
@@ -494,34 +554,35 @@ def p_keyboard(c):
     c.setPageSize(sz)
     pw, ph = sz
     n = closed_tray("K1", KB["W"], KB["D"], KB["T"], scaled(keyboard_top, 14), BLUE, BLUE_D, blue_panel)
-    page_header(c, pw, ph, "06  KEYBOARD - TOP + WALLS  (K1)",
-                ["%g x %g x %g cm. Fold walls down, glue the 4 corner tabs, then glue the bottom K2 (07_small_parts)"
-                 % (KB["W"], KB["D"], KB["T"]) + " onto the outer tabs.", PRINT_NOTE])
+    page_header(c, pw, ph, "06  لوحة المفاتيح - الأعلى + الجدران  (K1)",
+                ["%g × %g × %g سم. اطوِ الجدران للأسفل والصق ألسنة الزوايا الأربعة،"
+                 % (KB["W"], KB["D"], KB["T"]),
+                 "ثم الصق القطعة السفلية K2 (في الملف رقم 07) على الألسنة الخارجية.", PRINT_NOTE])
     w, h = size(n)
-    piece_title(c, n, (pw / cm - w) / 2, 4.0, "K1 keyboard")
+    piece_title(c, n, (pw / cm - w) / 2, 4.0, "K1 لوحة المفاتيح")
 
 
 def p_bottoms(c):
     sz = landscape(A4)
     c.setPageSize(sz)
     pw, ph = sz
-    page_header(c, pw, ph, "07  SMALL PARTS 1 - BOTTOM PANELS  (K2, U2, S3)",
-                ["These close the keyboard, mouse and stand foot from underneath (they will not be seen).", PRINT_NOTE])
-    k2 = panel("K2", KB["W"], KB["D"], BLUE_D, code_mark("K2 keyboard"))
+    page_header(c, pw, ph, "07  قطع صغيرة 1 - القطع السفلية  (K2, U2, S3)",
+                ["هذه القطع تغلق لوحة المفاتيح والماوس وقاعدة الحامل من الأسفل (لن تظهر).", PRINT_NOTE])
+    k2 = panel("K2", KB["W"], KB["D"], BLUE_D, code_mark("K2"))
     u2 = panel("U2", MOUSE["W"], MOUSE["D"], BLUE_D, code_mark("U2"))
-    s3 = panel("S3", FOOT["W"], FOOT["D"], BLACK, code_mark_black("S3 foot"))
+    s3 = panel("S3", FOOT["W"], FOOT["D"], BLACK, code_mark_black("S3"))
     x0 = (pw / cm - KB["W"] - 1.0 - MOUSE["W"]) / 2
-    piece_title(c, k2, x0, 11.0, "K2 keyboard bottom")
-    piece_title(c, u2, x0 + KB["W"] + 1.0, 10.5, "U2 mouse bottom")
-    piece_title(c, s3, x0, 2.0, "S3 stand foot bottom")
+    piece_title(c, k2, x0, 11.0, "K2 أسفل لوحة المفاتيح")
+    piece_title(c, u2, x0 + KB["W"] + 1.0, 10.5, "U2 أسفل الماوس")
+    piece_title(c, s3, x0, 2.0, "S3 أسفل قاعدة الحامل")
 
 
 def p_small2(c):
     c.setPageSize(A4)
     pw, ph = A4
-    page_header(c, pw, ph, "07  SMALL PARTS 2 - MOUSE (U1) + MONITOR WALLS (M3, M4, M5)",
-                ["U1: fold walls down, glue corner tabs, close with U2.  M3 = monitor bottom wall (24 cm),",
-                 "M4 / M5 = monitor side walls (15 cm). One long tab glues inside the back M2, the other under the screen M1."])
+    page_header(c, pw, ph, "07  قطع صغيرة 2 - الماوس (U1) + جدران الشاشة (M3, M4, M5)",
+                ["U1: اطوِ الجدران للأسفل، الصق ألسنة الزوايا، ثم أغلقه بالقطعة U2.   M3 = الجدار السفلي للشاشة (24 سم).",
+                 "M4 و M5 = الجداران الجانبيان للشاشة (15 سم). لسان طويل يُلصق داخل الظهر M2، والآخر تحت الواجهة M1."])
     W, H, T = MON["W"], MON["H"], MON["T"]
     m3 = Net("M3")
     f = m3.face(0, 0, T, W, BLACK, black_panel)
@@ -537,14 +598,14 @@ def p_small2(c):
     piece_title(c, m4, 5.0, 11.0, "M4")
     piece_title(c, m5, 8.6, 11.0, "M5")
     wu, hu = size(u1)
-    piece_title(c, u1, 12.0, 12.0, "U1 mouse")
+    piece_title(c, u1, 12.0, 12.0, "U1 الماوس")
 
 
 def p_rgb(c):
     c.setPageSize(A4)
     pw, ph = A4
-    page_header(c, pw, ph, "08  OPTIONAL - RGB SPEAKER FRONTS  (X1, X2)",
-                ["Style of the 3rd photo. Cut and glue over the speaker fronts (exactly %g x %g cm)." % (SPK["W"], SPK["H"]),
+    page_header(c, pw, ph, "08  اختياري - واجهات سماعات بإضاءة ملونة  (X1, X2)",
+                ["بنفس شكل الصورة الثالثة. قصها والصقها فوق واجهات السماعات (المقاس بالضبط %g × %g سم)." % (SPK["W"], SPK["H"]),
                  PRINT_NOTE])
     for i in range(2):
         X = (pw / cm / 2 - SPK["W"] - 1 + i * (SPK["W"] + 2)) * cm
@@ -555,7 +616,7 @@ def p_rgb(c):
         c.setStrokeColor(black)
         c.setLineWidth(0.8)
         c.rect(X, Y, SPK["W"] * cm, SPK["H"] * cm, fill=0, stroke=1)
-        label(c, X + SPK["W"] * cm / 2, Y - 0.5 * cm, ["X1 left", "X2 right"][i], 8, BLUE_D)
+        label_ar(c, X + SPK["W"] * cm / 2, Y - 0.5 * cm, ["X1 يسار", "X2 يمين"][i], 8, BLUE_D, True)
 
 
 FILES = [
