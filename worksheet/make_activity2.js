@@ -4,7 +4,11 @@ const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthT
 
 const FONT = 'Arial';
 const PINK = 'F4DCE6', DARK = 'B03A6B', LINE = '9C4A6E';
-const run = (text, o = {}) => new TextRun({ text, rightToLeft: true, font: FONT,
+// keep only the basic marks: shadda everywhere + a few vowels that help reading
+const FIX = [['أتعاون', 'أَتعاونُ'], ['يناسبها', 'يُناسبها'], ['وفق ما', 'وَفق ما'], ['حسب', 'حسَب'],
+  ['الحرفيّ', 'الحِرفيّ'], ['مكتسب', 'مكتسَب']];
+const basic = t => FIX.reduce((a, [x, y]) => a.split(x).join(y), t.replace(/[\u064B-\u0650\u0652]/g, ''));
+const run = (text, o = {}) => new TextRun({ text: basic(text), rightToLeft: true, font: FONT,
   size: o.size || 25, sizeComplexScript: o.size || 25, bold: o.bold, boldComplexScript: o.bold,
   color: o.color, shading: o.shade ? { type: ShadingType.CLEAR, color: 'auto', fill: o.shade } : undefined });
 const para = (runs, o = {}) => new Paragraph({ bidirectional: true, alignment: o.align || AlignmentType.RIGHT,
