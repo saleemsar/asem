@@ -44,8 +44,7 @@ function copy() {
       rows: [row(heads.map(h => cell(h, { bold: true, shade: PINK })), 720),
              row(ex.map(e => cell(e)), 640),
              ...[0, 1, 2].map(() => row(Array(6).fill(0).map(() => cell('')), 820))] }),
-    para([run('2 ', { bold: true, color: DARK }), run('نَعْرِضُ ما نَتَوَصَّلُ إِلَيْهِ أَمامَ الْمَجْموعاتِ الْأُخْرى.')], { before: 80, after: 20 }),
-    para([run('أُفَكِّرُ: ', { bold: true, color: DARK }), run('هَلِ الْإِبْداعُ فِطْرِيٌّ أَمْ مُكْتَسَبٌ؟', { bold: true })], { after: 0 }),
+    para([run('أُفَكِّرُ: ', { bold: true, color: DARK }), run('هَلِ الْإِبْداعُ فِطْرِيٌّ أَمْ مُكْتَسَبٌ؟', { bold: true })], { before: 80, after: 0 }),
   ];
 }
 
